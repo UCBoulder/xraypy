@@ -140,7 +140,7 @@ def move():
         new_tif = directory / tif.name
         if not new_tif.is_file():
             new_tif.unlink()
-        shutil.move(tif, new_tif)
+        shutil.move(tif.as_posix(), new_tif.as_posix())
     scan_glob = directory.glob("om_scan*.tif")
     print(f"Moved {len(list(scan_glob))} files")
 
