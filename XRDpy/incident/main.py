@@ -77,7 +77,7 @@ def plot():
 
     color_code = 0
     if args.color is not None:
-        color_code = int(args.color) % len(iplot.color_scheme_choices)
+        color_code = int(args.color)
     
     if args.animate:
         fps = 48
