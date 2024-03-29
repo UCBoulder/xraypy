@@ -128,8 +128,10 @@ def move():
             else:
                 next_number = 2
             directory = usr_dir / f"{date_name}-{next_number}"
+            print(f"Making new directory: {directory.as_posix()}")
     else:
         directory.mkdir(parents=True, exist_ok=True)
+        print(f"Making new directory: {directory.as_posix()}")
 
     scan_glob = data_path.glob("om_scan*.tif")
     print(f"Found {len(list(scan_glob))} files to move")
@@ -139,6 +141,7 @@ def move():
         if not new_tif.is_file():
             new_tif.unlink()
         shutil.move(tif, new_tif)
+    print(f"Moved {len(list(directory.glob(".tif")))} files")
 
 
 def make():

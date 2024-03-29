@@ -2,7 +2,7 @@ from pathlib import Path
 
 name = "XRDpy"
 directory = Path.home() / "Documents" / name
-data_path = Path.home() / "Data"
+data_path = Path.home() / "DATA"
 config_name = "config.yaml"
 default_config = {"data-file": "raw-stitched-data",
                   "weight-file": "stitched-exposure-time",
