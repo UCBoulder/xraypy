@@ -6,7 +6,8 @@ import XRDpy.package_params as package
 
 detector_dir = package.directory / "detectors"
 detector_dir.mkdir(parents=True, exist_ok=True)
-shutil.copyfile(Path("files") / "1 3 detector.h5", detector_dir / "1 3 detector.h5")
+for det_file in Path("files").glob("*.h5"):
+    shutil.copyfile(det_file, detector_dir / det_file.name)
 with open(package.directory / "config.yaml", "w") as f:
     yaml.dump({"data_path": package.data_path.as_posix()}, f)
 
