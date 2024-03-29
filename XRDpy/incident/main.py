@@ -136,14 +136,14 @@ def move():
     scan_glob = data_path.glob("om_scan*.tif")
     print(f"Found {len(list(scan_glob))} files to move")
 
-    for tif in scan_glob:
+    for tif in data_path.glob("om_scan*.tif"):
         print(tif.as_posix())
         new_tif = directory / tif.name
         if not new_tif.is_file():
             new_tif.unlink()
-        shutil.copy(tif, new_tif)
+        shutil.move(tif, new_tif)
     scan_glob = directory.glob("om_scan*.tif")
-    print(f"Copied {len(list(scan_glob))} files")
+    print(f"Moved {len(list(scan_glob))} files")
 
 
 def make():
