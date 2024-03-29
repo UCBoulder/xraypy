@@ -131,7 +131,10 @@ def move():
     else:
         directory.mkdir(parents=True, exist_ok=True)
 
-    for tif in data_path.glob("om_scan*.tif"):
+    scan_glob = data_path.glob("om_scan*.tif")
+    print(f"Found {len(list(scan_glob))} files to move")
+
+    for tif in scan_glob:
         new_tif = directory / tif.name
         if not new_tif.is_file():
             new_tif.unlink()
