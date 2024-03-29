@@ -84,7 +84,7 @@ class Detector(Eiger1M):
 
 class Stitcher:
 
-    COLUMN_OVERLAP = 10
+    OVERLAP = 10
     DEAD_BAND_PIXELS = 37
     
     def __init__(self, exposure_time: int):
@@ -95,8 +95,8 @@ class Stitcher:
         self.size = (0, 0)
         
     def _determine_size(self):
-        rows = self.detector.get_rows() + Stitcher.DEAD_BAND_PIXELS
-        columns = self.stitch_columns * (self.detector.get_columns() - Stitcher.COLUMN_OVERLAP) + Stitcher.COLUMN_OVERLAP
+        rows = self.sttich_rows * (self.detector.get_rows() + Stitcher.DEAD_BAND_PIXELS - Stitcher.OVERLAP) + Stitcher.OVERLAP
+        columns = self.stitch_columns * (self.detector.get_columns() - Stitcher.OVERLAP) + Stitcher.OVERLAP
         self.size = (rows, columns)
         print(self.size)
 
@@ -129,8 +129,8 @@ class Stitcher:
                 mask = base_mask.copy()
                 mask[np.where(file_data == self.detector.MAX_INT)] = 0
                 file_data *= mask
-                start_row = (2 - stitch_offset) * Stitcher.DEAD_BAND_PIXELS + (self.stitch_rows - stitch_row) * (self.detector.ROWS - Stitcher.COLUMN_OVERLAP)
-                start_column = (stitch_col - 1) * (self.detector.COLS - Stitcher.COLUMN_OVERLAP)
+                start_row = (2 - stitch_offset) * Stitcher.DEAD_BAND_PIXELS + (self.stitch_rows - stitch_row) * (self.detector.ROWS - Stitcher.OVERLAP)
+                start_column = (stitch_col - 1) * (self.detector.COLS - Stitcher.OVERLAP)
                 data[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += file_data
                 weight[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += mask
             except ValueError:
