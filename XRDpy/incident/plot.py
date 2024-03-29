@@ -41,6 +41,7 @@ def load_tiff_data(directory: Path) -> tuple:
 
     for ii, tiff in enumerate(tiff_glob):
         angles[ii] = float(__extract_angle_from(tiff))
+        print(angles[ii])
         intensity_data[ii] = __load_image(tiff, base_mask)
     
     sorting_args = np.argsort(angles)
@@ -199,7 +200,7 @@ def plot_tuning(angle: np.ndarray, intensity: np.ndarray, pixel_size: float | No
     print(np.max(z))
     print(intensity_x_ave)
     print(intensity_x_ave.shape)
-    print(np.shape(intensity_x_ave))
+    print(np.max(intensity_x_ave))
 
     color_map = ax.pcolormesh(angle, z, intensity_x_ave.T, norm=color_norm, cmap=__color_scheme_choices[color_scheme])
 
