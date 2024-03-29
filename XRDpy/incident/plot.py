@@ -173,10 +173,11 @@ def plot_tuning(angle: np.ndarray, intensity: np.ndarray, pixel_size: float | No
     extension = None
 
     if clip is not None:
-        intensity_x_ave[intensity_x_ave > clip] = clip
+        intensity_x_ave[np.where(intensity_x_ave > clip)] = clip
         extension = "max"
     if log:
-        intensity_x_ave[intensity_x_ave < 1] = 1
+        intensity_x_ave[np.where(intensity_x_ave < 1)] = 1
+        # intensity_x_ave[np.where(intensity_x_ave == np.infty)] = 1
         color_norm = colors.LogNorm(vmin=intensity_x_ave.min(), vmax=intensity_x_ave.max())
     else:
         color_norm = colors.Normalize(vmin=intensity_x_ave.min(), vmax=intensity_x_ave.max())
@@ -189,6 +190,16 @@ def plot_tuning(angle: np.ndarray, intensity: np.ndarray, pixel_size: float | No
     else:
         z = (np.arange(intensity_x_ave.shape[1])[::-1] + 0.5) * pixel_size
         ax.set_ylabel("Z (mm)")
+    
+    print(angle)
+    print(angle.shape)
+    print(np.max(angle))
+    print(z)
+    print(z.shape)
+    print(np.max(z))
+    print(intensity_x_ave)
+    print(intensity_x_ave.shape)
+    print(np.shape(intensity_x_ave))
 
     color_map = ax.pcolormesh(angle, z, intensity_x_ave.T, norm=color_norm, cmap=__color_scheme_choices[color_scheme])
 
