@@ -22,9 +22,9 @@ setup(
             "XRD-film=XRDpy.main:film",
             "XRD-stitch=XRDpy.main:stitch",
             # "XRD-default=XRDpy.main:default",
-            "XRD-imacro=XRDpy.incident.main:make"
-            "XRD-imove=XRDpy.incident.main:move"
-            "XRD-iplot=XRDpy.incident.main:plot"
+            "XRD-imacro=XRDpy.incident.main:make",
+            "XRD-imove=XRDpy.incident.main:move",
+            "XRD-iplot=XRDpy.incident.main:plot",
         ],
     },
     # data_files=[(str(install_dir), [str(Path("files") / "1 3 detector.h5")])],
