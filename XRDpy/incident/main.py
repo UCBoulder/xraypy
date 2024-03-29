@@ -26,7 +26,7 @@ def plot():
     parser.add_argument("-CB", "--crop_below", help="Override number of pixels below the direct beam to keep in crop (default=20).")
     parser.add_argument("-CO", "--crop_offset", help="Move the center of the crop to the right (in pixels)")
     parser.add_argument("-C", "--color", help="Integer value corresponding to different color schemes")
-    parser.add_argument("-D", "--dir", help="Specify a specific directory, or CWD for current working directory")
+    parser.add_argument("--dir", help="Specify a specific directory, or CWD for current working directory")
     args = parser.parse_args()
     
     usr_dir = package.directory / args.user / "om_scans"
