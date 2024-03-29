@@ -26,6 +26,7 @@ def plot():
     parser.add_argument("-CB", "--crop_below", help="Override number of pixels below the direct beam to keep in crop (default=20).")
     parser.add_argument("-CO", "--crop_offset", help="Move the center of the crop to the right (in pixels)")
     parser.add_argument("-C", "--color", help="Integer value corresponding to different color schemes")
+    parser.add_argument("-D", "--dir", "Specify a specific directory, or CWD for current working directory")
     args = parser.parse_args()
     
     usr_dir = package.directory / args.user / "om_scans"
@@ -52,6 +53,12 @@ def plot():
         date_name = f"{date_name}-{int(args.number)}"
 
     directory = usr_dir / date_name.rstrip("-1")
+
+    if args.dir is not None:
+        if args.dir == "CWD":
+            directory = Path.cwd()
+        else:
+            directory = Path(args.dir)
 
     angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
 

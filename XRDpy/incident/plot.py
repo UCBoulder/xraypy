@@ -41,7 +41,6 @@ def load_tiff_data(directory: Path) -> tuple:
 
     for ii, tiff in enumerate(directory.glob("om_scan*degrees.tif")):
         angles[ii] = float(__extract_angle_from(tiff))
-        print(angles[ii])
         intensity_data[ii] = __load_image(tiff, base_mask)
     
     sorting_args = np.argsort(angles)
@@ -191,16 +190,6 @@ def plot_tuning(angle: np.ndarray, intensity: np.ndarray, pixel_size: float | No
     else:
         z = (np.arange(intensity_x_ave.shape[1])[::-1] + 0.5) * pixel_size
         ax.set_ylabel("Z (mm)")
-    
-    print(angle)
-    print(angle.shape)
-    print(np.max(angle))
-    print(z)
-    print(z.shape)
-    print(np.max(z))
-    print(intensity_x_ave)
-    print(intensity_x_ave.shape)
-    print(np.max(intensity_x_ave))
 
     color_map = ax.pcolormesh(angle, z, intensity_x_ave.T, norm=color_norm, cmap=__color_scheme_choices[color_scheme])
 

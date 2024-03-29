@@ -204,3 +204,5 @@ e.g. `XRD-iplot abcd1234`
     - Move the center of the crop in the horizontal direction. By default, this value is 0.
 - `--color` or `-C`
     - An integer value you can give to change the color scheme of the plots. If you give too large a value, it will just cycle through the available color schemes.
+- `--dir PATH` or `-D`
+    - Override directory search entirely and look in `PATH` for the files. Can give `-D CWD` to get current working directory.
