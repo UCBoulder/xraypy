@@ -32,28 +32,26 @@ def plot():
 
     if args.date is None:
         date = datetime.now()
-        dir_date = f"{date.year}{date.month}{date.day}"
+        date_name = f"{date.year}{date.month}{date.day}"
     else:
-        dir_date = args.date
-        if len(dir_date) != 8:
+        date_name = args.date
+        if len(date_name) != 8:
             raise ValueError(f"The given date must be in the form YYYYMMDD.")
         try:
-            int(dir_date)
+            int(date_name)
         except ValueError:
             raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
     
     if args.number is None:
-        sister_dirs = usr_dir.glob(f"{dir_date}")
-        trailing_numbers = [int(d.name.split("-")[-1]) for d in sister_dirs]
-        if trailing_numbers:
-            dir_name = f"{dir_date}-{max(trailing_numbers)}"
-        else:
-            dir_name = dir_date
+        latest_num = 1
+        for sister_dir in usr_dir.glob(f"{date_name}"):
+            sister_num = int(sister_dir.name.split("-")[-1])
+            if sister_num > latest_num:
+                latest_num = sister_num
     else:
-        dir_name = f"{dir_date}-{int(args.number)}"
-        dir_name.rstrip("-1")
-    
-    directory = usr_dir / dir_name
+        dir_name = f"{date_name}-{int(args.number)}"
+        
+    directory = usr_dir / dir_name.rstrip("-1")
 
     angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
 
@@ -118,7 +116,7 @@ def move():
     date_name = f"{date.year}{date.month}{date.day}"
     
     directory = usr_dir / date_name
-
+    
     if directory.exists():
         print("Directory has already been created today")
         current_number = 1
