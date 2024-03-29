@@ -49,9 +49,9 @@ def plot():
             if sister_num > latest_num:
                 latest_num = sister_num
     else:
-        dir_name = f"{date_name}-{int(args.number)}"
-        
-    directory = usr_dir / dir_name.rstrip("-1")
+        date_name = f"{date_name}-{int(args.number)}"
+
+    directory = usr_dir / date_name.rstrip("-1")
 
     angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
 
