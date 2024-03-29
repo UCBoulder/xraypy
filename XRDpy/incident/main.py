@@ -120,15 +120,21 @@ def move():
     directory = usr_dir / date_name
 
     if directory.exists():
+        print("Directory has already been created today")
+        current_number = 1
+        for sister_dir in usr_dir.glob(f"{date_name}-*"):
+            sister_num = int(sister_dir.name.split("-")[-1])
+            if sister_num > current_number:
+                current_number = sister_num
+        current_dir = usr_dir / f"{date_name}-{current_number}".rstrip("-1")
+        print(f"Latest directory found: {current_dir.as_posix()}")
         if not args.append:
-            sister_dirs = usr_dir.glob(f"{date_name}*")
-            trailing_numbers = [int(d.name.split("-")[-1]) for d in sister_dirs]
-            if trailing_numbers:
-                next_number = max(trailing_numbers) + 1
-            else:
-                next_number = 2
-            directory = usr_dir / f"{date_name}-{next_number}"
+            directory = usr_dir / f"{date_name}-{current_number + 1}"
+            directory.mkdir(parents=True, exist_ok=True)
             print(f"Making new directory: {directory.as_posix()}")
+        else:
+            directory = current_dir
+            print("Appending to this directory")
     else:
         directory.mkdir(parents=True, exist_ok=True)
         print(f"Making new directory: {directory.as_posix()}")
