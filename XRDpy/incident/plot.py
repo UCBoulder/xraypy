@@ -39,7 +39,7 @@ def load_tiff_data(directory: Path) -> tuple:
     angles = np.empty(num_angles)
     intensity_data = np.empty((num_angles, *intensity_db.shape))
 
-    for ii, tiff in enumerate(tiff_glob):
+    for ii, tiff in enumerate(directory.glob("om_scan*degrees.tif")):
         angles[ii] = float(__extract_angle_from(tiff))
         print(angles[ii])
         intensity_data[ii] = __load_image(tiff, base_mask)
