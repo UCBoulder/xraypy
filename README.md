@@ -55,10 +55,8 @@ PONI refers to *point of normal incidence* and is the point on the detector that
 - In the right panel:
     - Set wavelength to 1.54185 Angstrom
     - Select AgBh from calibrants
-    - Select the ... button under "Detector" and then "Manual definition"
-        - Pixel size: 75 by 75 micron
-        - Detector size: 1102 by 3070 pixels
-        - Orientation: 2 TopRight (this means top-left when looking at the detector from the sample)
+    - Select the ... button under "Detector" and then load from file
+        - the install should save .h5 files for each eiger_stitch size in "Documents/XRDpy/detectors/". Select the file matching the calibration's stitch size.
     - Designate the calibration TIFF
     - Optionally set a mask file if you have one saved (otherwise, you can make one in the next step)
 - Press "Next" to get to the mask making step. Once a mask is made, Press "Next to get to the ring selection tool
