@@ -1,0 +1,6 @@
+XRDpy version 0.1
+Process XRD TIFF files from Dectris Eiger1M detector
+
+XRD-stitch
+
+run `pyFAI-calib2` first to generate a PONI file and call it "cal.poni" to place in the directory with the raw data
