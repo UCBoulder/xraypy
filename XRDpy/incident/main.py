@@ -106,7 +106,7 @@ def move():
         epilog="author: Teddy Tortorici <edward.tortorici@colorado.edu>"
     )
     parser.add_argument("user", help="This will be the name of the directory the files will be moved to")
-    parser.add_argument("-A", "--append", help="Add this tag to append the latest set of data")
+    parser.add_argument("-A", "--append", action="store_true" help="Add this tag to append the latest set of data")
     args = parser.parse_args()
     with open(package.directory / "config.yaml") as f:
         data_path = Path(yaml.safe_load(f)["data_path"])
@@ -143,14 +143,11 @@ def move():
     print(f"Found {len(list(scan_glob))} files to move")
 
     for tif in data_path.glob("om_scan*.tif"):
-        print(tif.as_posix())
         new_tif = directory / tif.name
+        print(new_tif)
         if new_tif.is_file():
             new_tif.unlink()
         shutil.move(tif, new_tif)
-    scan_glob = directory.glob("om_scan*.tif")
-    print(f"Moved {len(list(scan_glob))} files")
-
 
 def make():
     parser = argparse.ArgumentParser(
