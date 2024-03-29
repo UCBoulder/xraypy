@@ -28,7 +28,7 @@ def plot():
     parser.add_argument("-C", "--color", help="Integer value corresponding to different color schemes")
     args = parser.parse_args()
     
-    usr_dir = package.directory / args.user
+    usr_dir = package.directory / args.user / "om_scans"
 
     if args.date is None:
         date = datetime.now()
@@ -111,7 +111,7 @@ def move():
     with open(package.directory / "config.yaml") as f:
         data_path = Path(yaml.safe_load(f)["data_path"])
 
-    usr_dir = package.directory / args.user
+    usr_dir = package.directory / args.user / "om_scans"
     if not usr_dir.exists():
         usr_dir.mkdir(parents=True, exist_ok=True)
     
