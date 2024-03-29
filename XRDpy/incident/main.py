@@ -141,7 +141,7 @@ def move():
         if not new_tif.is_file():
             new_tif.unlink()
         shutil.move(tif, new_tif)
-    print(f"Moved {len(list(directory.glob(".tif")))} files")
+    print(f"Moved {len(list(directory.glob("om_scan*.tif")))} files")
 
 
 def make():
