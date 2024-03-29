@@ -106,7 +106,7 @@ def move():
         epilog="author: Teddy Tortorici <edward.tortorici@colorado.edu>"
     )
     parser.add_argument("user", help="This will be the name of the directory the files will be moved to")
-    parser.add_argument("-A", "--append", action="store_true" help="Add this tag to append the latest set of data")
+    parser.add_argument("-A", "--append", action="store_true", help="Add this tag to append the latest set of data")
     args = parser.parse_args()
     with open(package.directory / "config.yaml") as f:
         data_path = Path(yaml.safe_load(f)["data_path"])
