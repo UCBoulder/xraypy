@@ -6,8 +6,8 @@ import matplotlib.pylab as plt
 from pathlib import Path
 from datetime import datetime
 import XRDpy.package_params as package
-from XRDpy.incident.macro import arange, create_file
-from XRDpy.incident.plot import load_tiff_data, crop_data, color_scheme_choices, animate_tiffs, plot_tuning
+import XRDpy.incident.macro as imacro
+import XRDpy.incident.plot as iplot
 
 
 def plot():
@@ -55,7 +55,7 @@ def plot():
     
     directory = usr_dir / dir_name
 
-    angles, intensity_data, direct_beam = load_tiff_data(directory)
+    angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
 
     print(f"Loaded {len(angles) + 1} files from {directory.as_posix()}")
     print(f"Found {len(angles)} angles in the scan")
@@ -75,17 +75,17 @@ def plot():
     if args.crop_offset is not None:
         x_offset = int(args.crop_offset)
     
-    id_c, db_c = crop_data(intensity_data, direct_beam, x_pixel_width, pixels_above, pixels_below, x_offset)
+    id_c, db_c = iplot.crop_data(intensity_data, direct_beam, x_pixel_width, pixels_above, pixels_below, x_offset)
 
     color_code = 0
     if args.color is not None:
-        color_code = int(args.color) % len(color_scheme_choices)
+        color_code = int(args.color) % len(iplot.color_scheme_choices)
     
     if args.animate:
         fps = 48
-        fig, ani = animate_tiffs(id_c, fps, log=True, color_scheme=color_code)
+        fig, ani = iplot.animate_tiffs(id_c, fps, log=True, color_scheme=color_code)
     
-    plot_tuning(angles, id_c, pixel_size=0.75, log=True, color_scheme=color_code)
+    iplot.plot_tuning(angles, id_c, pixel_size=0.75, log=True, color_scheme=color_code)
     if args.title is not None:
         plt.title(args.title)
 
@@ -155,7 +155,7 @@ def make():
     if args.clear:
         for macro in dir.glob("*.txt"):
             macro.unlink()
-    angles = arange(args.start_angle, args.end_angle, args.angle_step)
+    angles = imacro.arange_angles(args.start_angle, args.end_angle, args.angle_step)
     if args.name is None:
         args.name = ""
-    create_file(dir, angles, args.name)
+    imacro.create_file(dir, angles, args.name)
