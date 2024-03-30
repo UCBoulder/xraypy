@@ -1,7 +1,7 @@
 import sys
 import yaml
 from pathlib import Path
-import cuxrd.package_params as package
+import XRDpy.package_params as package
 
 class ConfigHandler:
     def __init__(self, args) -> None:

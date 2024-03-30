@@ -4,9 +4,9 @@ import fabio
 import matplotlib.pylab as plt
 import matplotlib
 from pathlib import Path
-from cuxrd.tiff_loader import load_from
-from cuxrd.process_default import ConfigHandler
-from cuxrd.transform import TransformGIX
+from XRDpy.tiff_loader import load_from
+from XRDpy.process_default import ConfigHandler
+from XRDpy.transform import TransformGIX
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
