@@ -33,7 +33,7 @@ def plot():
 
     if args.date is None:
         date = datetime.now()
-        date_name = f"{date.year}{date.month}{date.day}"
+        date_name = f"{date.year}{date.month:02d}{date.day:02d}"
     else:
         date_name = args.date
         if len(date_name) != 8:
@@ -120,7 +120,7 @@ def move():
     if not usr_dir.exists():
         usr_dir.mkdir(parents=True, exist_ok=True)
     
-    date_name = f"{date.year}{date.month}{date.day}"
+    date_name = f"{date.year}{date.month:02d}{date.day:02d}"
     
     directory = usr_dir / date_name
     

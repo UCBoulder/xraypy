@@ -218,7 +218,8 @@ class FilmParse(ProcessParse):
                 fig.colorbar(pos, ax=ax1, shrink=0.7)
         if self.args.reduce:
             reduced_file = self.dir / "1D-reduction.dat"
-            if reduced_file.is_file()
+            if reduced_file.is_file():
+                reduced_file.unlink()
             res = ai.integrate1d_ng(data_adj, 1000, mask=mask, unit="q_A^-1",
                                     filename=str(reduced_file))
             if self.args.plot:
