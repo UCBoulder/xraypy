@@ -15,7 +15,7 @@ def create_file(directory: Path, angles: list[float], tag: str = "") -> None:
     if tag:
         tag += "_"
     date = datetime.now()
-    macroname = f'Incident_angle_tuning_macro-{date.year:02d}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
+    macroname = f'Incident_angle_tuning_macro-{date.year}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
     print("Writing Macro...")
     with open(directory / macroname, 'w') as f:
         f.write("umvr wbs -5\n")  # move beam stop out of the way

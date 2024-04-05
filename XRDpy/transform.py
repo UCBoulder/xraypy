@@ -4,9 +4,90 @@ from matplotlib.colors import LogNorm
 from pathlib import Path
 import fabio
 from pyFAI.geometry import Geometry
+# from XRDpy.transform import transform
 import matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
+
+
+def transform(data: np.ndarray, weight: np.ndarray, incident_angle: float, pixel_size: float,
+              beam_center_y: float, beam_center_x: float, det_dist: float, tilt_angle: float):
+    DEG2RAD = 0.0174532925199432957692369076848861271344287188854
+    beam_center_x /= pixel_size
+    beam_center_y /= -pixel_size
+    beam_center_y += data.shape[0]
+    incident_angle *= DEG2RAD
+    cos_incident = np.cos(incident_angle)
+    tilt_angle *= DEG2RAD
+    det_dist /= pixel_size
+    x = beam_center_x - np.arange(data.shape[1]).reshape(1, data.shape[1])
+    y = beam_center_y - np.arange(data.shape[0]).reshape(data.shape[0], 1)
+    if tilt_angle != 0.0:
+        tilt_cos = np.cos(tilt_angle)
+        tilt_sin = np.sin(tilt_angle)
+        x_rot = x * tilt_cos - y * tilt_sin
+        y = y * tilt_cos + x * tilt_sin
+        x = x_rot
+    hori_travel_sq = det_dist * det_dist + x * x
+    alpha_scattered = np.arcsin(y / np.sqrt(hori_travel_sq + y * y)) - incident_angle
+    sin_phi_scattered = x / np.sqrt(hori_travel_sq)
+
+    cos_alpha_scattered = np.cos(alpha_scattered)
+    cos_phi_scattered = np.sqrt(1 - sin_phi_scattered * sin_phi_scattered)
+    q_xy_sq = cos_alpha_scattered * cos_alpha_scattered + cos_incident * cos_incident - (2.0 * cos_incident) * cos_alpha_scattered * cos_phi_scattered
+    q_xy = np.sqrt(q_xy_sq) * np.sign(x)
+    q_z = np.sin(alpha_scattered) + np.sin(incident_angle)
+    q_z_sq = q_z * q_z
+    q_sq = q_xy_sq + q_z_sq
+    r = np.array([q_xy, q_z]).reshape((2, 1, 1)) * (det_dist * np.sqrt(0.5 + 1.0 / (2.0 - q_sq)))
+
+    beam_center_t = (np.max(r[1]), np.max(r[0]))
+    shape_t = (int(np.ceil(beam_center_t[0] - np.min(r[1]))) + 1, int(np.ceil(beam_center_t[1] - np.min(r[0]))) + 1)
+    print(f"The image with shape: {data.shape}\nWill be transformed to shape: {shape_t}")
+    r_det_origin = np.array(beam_center_t)[::-1].reshape((2, 1, 1)) - r
+    # r_det_floor = np.floor(r_det_origin)
+    # r_pixel_loc = r_det_floor.astype(int)
+    # remainder = r_det_origin - r_det_floor
+    # remainder_compliment = 1 - remainder
+    # current_pixel_weight = np.prod(remainder_compliment, axis=0)
+    # x_neighbor_weight = remainder[0] * remainder_compliment[1]
+    # y_neighbor_weight = remainder_compliment[0] * remainder[1]
+    # diag_neighbor_weight = np.prod(remainder, axis=0)
+    data_t, weight_t = move_pixels()
+
+def move_pixels(data: np.ndarray[np.float64], weight: np.ndarray[np.float64],
+                r_det_origin: np.ndarray[np.float64], shape_t: tuple[int, int]):
+    data_t = np.zeros(shape_t, dtype=np.float64)
+    weight_t = np.zeros(shape_t, dtype=np.float64)
+    for rr in range(data.shape[0]):
+        for cc in range(data.shape[1]):
+            x = r_det_origin[0, rr, cc]
+            y = r_det_origin[1, rr, cc]
+
+            x_floor = np.floor(x)
+            y_floor = np.floor(y)
+
+            x_r = x - x_floor
+            y_r = y - y_floor
+            x_rc = 1 - x_r
+            y_rc = 1 - y_rc
+            current_pixel_weight = x_rc * y_rc
+            x_neighbor_weight = x_r * y_rc
+            y_neighbor_weight = x_rc * y_r
+            diag_neighbor_weight = x_r * y_r
+
+            col = int(x_floor)
+            row = int(y_floor)
+            
+            data_t[row, col] += data[rr, cc] * current_pixel_weight
+            weight_t[row, col] += weight[rr, cc] * current_pixel_weight
+            data_t[row, col + 1] += data[rr, cc] * x_neighbor_weight
+            weight_t[row, col + 1] += weight[rr, cc] * x_neighbor_weight
+            data_t[row + 1, col] += data[rr, cc] * y_neighbor_weight
+            weight_t[row + 1, col] += weight[rr, cc] * y_neighbor_weight
+            data_t[row + 1, col + 1] += data[rr, cc] * diag_neighbor_weight
+            weight_t[row + 1, col + 1] += weight[rr, cc] * diag_neighbor_weight
+    return data_t, weight_t
 
 
 def open_tiff(file_name: Path) -> np.ndarray:
@@ -26,6 +107,29 @@ def save_data(directory: Path, filename: str, numpy_array: np.ndarray):
     numpy_array.tofile(directory / filename, sep=',')
 
 
+class Transform2:
+    def __init__(self, incident_angle_degrees, tilt_angle_degrees=None):
+        self.incident_angle_degrees = incident_angle_degrees
+        self.tilt_angle_degrees = tilt_angle_degrees
+        self.calibration_poni = Geometry()
+        self.shape = (0, 0)
+    
+    def load(self, poni_file_name: Path):
+        self.calibration_poni.load(poni_file_name)
+        self.shape = self.calibration_poni.get_shape()
+        if self.tilt_angle_degrees is None:
+            self.t = tf.Transform(self.incident_angle_degrees, self.shape[0], self.shape[1], self.calibration_poni.get_pixel1(),
+                                  self.calibration_poni.get_poni1(), self.calibration_poni.get_poni2(),
+                                  self.calibration_poni.get_dist())
+        else:
+            self.t = tf.Transform(self.incident_angle_degrees, self.shape[0], self.shape[1], self.calibration_poni.get_pixel1(),
+                                  self.calibration_poni.get_poni1(), self.calibration_poni.get_poni2(),
+                                  self.calibration_poni.get_dist(), self.tilt_angle_degrees)
+    
+    def transform_image(self, data, weight):
+        self.t.transform_image(self, data, weight)
+
+
 class TransformGIX:
 
     def __init__(self, incident_angle_degrees, tilt_angle_degrees=None):
@@ -34,9 +138,9 @@ class TransformGIX:
         self.calibration_poni = Geometry()
         self.incident_angle = np.deg2rad(incident_angle_degrees)
         self.tilt_angle = np.deg2rad(tilt_angle_degrees)
-        self.alpha_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
-        self.phi_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
-        self.q_unit_vec = np.empty(0, dtype=np.float64)  # will be 3 x size of data
+        # self.alpha_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
+        # self.phi_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
+        # self.q_unit_vec = np.empty(0, dtype=np.float64)  # will be 3 x size of data
         # self.q_xy = np.empty(0, dtype=np.float64)   # will be array size of data
         self.shape = (0, 0)  # will be shape of date
         self.beam_y_px = 0.0  # will be poni-y in pixels
@@ -69,7 +173,7 @@ class TransformGIX:
             sum_dsq_ysq = self.det_dist_px * self.det_dist_px + y_lab * y_lab
             self.alpha_scattered = np.arcsin(z_lab / np.sqrt(sum_dsq_ysq + z_lab * z_lab)) - self.incident_angle
             self.phi_scattered = np.arcsin(y_lab / np.sqrt(sum_dsq_ysq))
-            self.phi_scattered = np.repeat(self.phi_scattered, self.shape[0], axis=0)
+            # self.phi_scattered = np.repeat(self.phi_scattered, self.shape[0], axis=0)
 
 
     def calculate_q_vector(self):
@@ -80,6 +184,25 @@ class TransformGIX:
             np.sin(self.alpha_scattered) + np.sin(self.incident_angle)
         ])
         # self.q_xy = np.sqrt(self.q_unit_vec[0] * self.q_unit_vec[0] + self.q_unit_vec[1] * self.q_unit_vec[1]) * ((self.q_unit_vec[1] > 0) * 2 - 1)
+
+    def calculate_q_vector2(self):
+        x = np.arange(self.shape[1]).reshape(1, self.shape[1])
+        y = np.arange(self.shape[0]).reshape(self.shape[0], 1)
+        y_lab = self.beam_x_px - x
+        z_lab = self.beam_y_px - y
+        if self.tilt_angle:
+            tilt_cos = np.cos(self.tilt_angle)
+            tilt_sin = np.sin(self.tilt_angle)
+            y_rot = y_lab * tilt_cos - z_lab * tilt_sin
+            z_rot = z_lab * tilt_cos + y_lab * tilt_sin
+            sum_dsq_ysq = self.det_dist_px * self.det_dist_px + y_rot * y_rot
+            alpha_scattered = np.arcsin(z_rot / np.sqrt(sum_dsq_ysq + z_rot * z_rot)) - self.incident_angle
+            sin_phi_scattered = y_rot / np.sqrt(sum_dsq_ysq)
+        else:
+            sum_dsq_ysq = self.det_dist_px * self.det_dist_px + y_lab * y_lab
+            alpha_scattered = np.arcsin(z_lab / np.sqrt(sum_dsq_ysq + z_lab * z_lab)) - self.incident_angle
+            sin_phi_scattered = y_lab / np.sqrt(sum_dsq_ysq)
+        
 
     def transform_image(self, data, weight):
         q_rot = np.array([

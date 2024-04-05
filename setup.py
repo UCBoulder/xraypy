@@ -1,4 +1,5 @@
-from setuptools import setup
+from setuptools import setup, Extension
+from Cython.Build import cythonize
 from pathlib import Path
 import shutil
 import yaml
@@ -13,10 +14,11 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='0.22',
+    version='0.23',
     packages=["XRDpy", "XRDpy.incident"],
+    ext_modules= [Extension('XRDpy.transform', ['XrDpy/transform_function.cpp'])],  # cythonize("XRDpy/transform_function.pyx"),
     scripts=["XRDpy/main.py",],
-    py_modules=["XRDpy.transform"],
+    # py_modules=["XRDpy.transform"],
     entry_points = {
         "console_scripts": [
             "XRD-film=XRDpy.main:film",
@@ -29,6 +31,7 @@ setup(
     },
     # data_files=[(str(install_dir), [str(Path("files") / "1 3 detector.h5")])],
     install_requires=[
+        "cython",
         "numpy",
         "matplotlib",
         "pyFAI",

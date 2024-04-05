@@ -6,7 +6,7 @@ import pyFAI
 from pathlib import Path
 # import XRDpy.package_params as package
 from XRDpy.tiff_loader import load_from
-from XRDpy.transform import TransformGIX
+from XRDpy.transform import TransformGIX, Transform2
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
 import matplotlib
@@ -164,7 +164,8 @@ class FilmParse(ProcessParse):
         if self.args.override or not (data_t_file.is_file() and
                                       weight_t_file.is_file() and
                                       cal_t_file.is_file()):
-            transformer = TransformGIX(self.incident, self.tilt)
+            # transformer = TransformGIX(self.incident, self.tilt)
+            transformer = Transform2(self.incident, self.tilt)
             transformer.load(self.dir / "cal.poni")
             print("Start image transform")
             data_t, weight_t, beam_center_t = transformer.transform_image(data, weight)
@@ -229,6 +230,7 @@ class FilmParse(ProcessParse):
                 plt.xlabel(r"$q\ (\mathregular{\AA}^{-1})$")
                 plt.ylabel("Intensity")
 
+# fix 03 in date
         
         
     
