@@ -13,7 +13,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='0.22',
+    version='0.23',
     packages=["XRDpy", "XRDpy.incident"],
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
