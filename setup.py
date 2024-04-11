@@ -35,9 +35,8 @@ setup(
         "numpy",
         "matplotlib",
         "pyFAI",
-        "pyyaml",
         "fabio",
-        "pathlib",
+        "gixpy",
         "pyside6",
         "pyopencl"
     ],

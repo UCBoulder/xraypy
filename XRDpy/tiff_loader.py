@@ -95,7 +95,7 @@ class Stitcher:
         self.size = (0, 0)
         
     def _determine_size(self):
-        rows = self.sttich_rows * (self.detector.get_rows() + Stitcher.DEAD_BAND_PIXELS - Stitcher.OVERLAP) + Stitcher.OVERLAP
+        rows = self.stich_rows * (self.detector.get_rows() + Stitcher.DEAD_BAND_PIXELS - Stitcher.OVERLAP) + Stitcher.OVERLAP
         columns = self.stitch_columns * (self.detector.get_columns() - Stitcher.OVERLAP) + Stitcher.OVERLAP
         self.size = (rows, columns)
         print(self.size)
