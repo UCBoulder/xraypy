@@ -4,6 +4,7 @@ from matplotlib.colors import LogNorm
 from pathlib import Path
 import fabio
 from pyFAI.geometry import Geometry
+import gixpy as gp
 import matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
@@ -32,8 +33,8 @@ class TransformGIX:
         if tilt_angle_degrees is None:
             tilt_angle_degrees = 0.
         self.calibration_poni = Geometry()
-        self.incident_angle = np.deg2rad(incident_angle_degrees)
-        self.tilt_angle = np.deg2rad(tilt_angle_degrees)
+        self.incident_angle_d = incident_angle_degrees
+        self.tilt_angle_d = tilt_angle_degrees
         self.alpha_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
         self.phi_scattered = np.empty(0, dtype=np.float64)  # will be array size of data
         self.q_unit_vec = np.empty(0, dtype=np.float64)  # will be 3 x size of data
@@ -46,78 +47,28 @@ class TransformGIX:
     def load(self, poni_file_name: Path):
         self.calibration_poni.load(poni_file_name)
         self.shape = self.calibration_poni.get_shape()
-        self.beam_x_px = self.calibration_poni.get_poni2() / self.calibration_poni.get_pixel2()
-        self.beam_y_px = float(self.shape[0]) - self.calibration_poni.get_poni1() / self.calibration_poni.get_pixel1()
-        self.det_dist_px = self.calibration_poni.get_dist() / self.calibration_poni.get_pixel1()
-        self.calculate_scattering_angles()
-        self.calculate_q_vector()
-    
-    def calculate_scattering_angles(self):
-        x = np.arange(self.shape[1]).reshape(1, self.shape[1])
-        y = np.arange(self.shape[0]).reshape(self.shape[0], 1)
-        y_lab = self.beam_x_px - x
-        z_lab = self.beam_y_px - y
-        if self.tilt_angle:
-            tilt_cos = np.cos(self.tilt_angle)
-            tilt_sin = np.sin(self.tilt_angle)
-            y_rot = y_lab * tilt_cos - z_lab * tilt_sin
-            z_rot = z_lab * tilt_cos + y_lab * tilt_sin
-            sum_dsq_ysq = self.det_dist_px * self.det_dist_px + y_rot * y_rot
-            self.alpha_scattered = np.arcsin(z_rot / np.sqrt(sum_dsq_ysq + z_rot * z_rot)) - self.incident_angle
-            self.phi_scattered = np.arcsin(y_rot / np.sqrt(sum_dsq_ysq))
-        else:
-            sum_dsq_ysq = self.det_dist_px * self.det_dist_px + y_lab * y_lab
-            self.alpha_scattered = np.arcsin(z_lab / np.sqrt(sum_dsq_ysq + z_lab * z_lab)) - self.incident_angle
-            self.phi_scattered = np.arcsin(y_lab / np.sqrt(sum_dsq_ysq))
-            self.phi_scattered = np.repeat(self.phi_scattered, self.shape[0], axis=0)
-
-
-    def calculate_q_vector(self):
-        cos_alpha = np.cos(self.alpha_scattered)
-        self.q_unit_vec = np.array([
-            cos_alpha * np.cos(self.phi_scattered) - np.cos(self.incident_angle),
-            cos_alpha * np.sin(self.phi_scattered),
-            np.sin(self.alpha_scattered) + np.sin(self.incident_angle)
-        ])
-        # self.q_xy = np.sqrt(self.q_unit_vec[0] * self.q_unit_vec[0] + self.q_unit_vec[1] * self.q_unit_vec[1]) * ((self.q_unit_vec[1] > 0) * 2 - 1)
+        # self.beam_x_px = self.calibration_poni.get_poni2() / self.calibration_poni.get_pixel2()
+        # self.beam_y_px = float(self.shape[0]) - self.calibration_poni.get_poni1() / self.calibration_poni.get_pixel1()
+        # self.det_dist_px = self.calibration_poni.get_dist() / self.calibration_poni.get_pixel1()
+        # self.calculate_scattering_angles()
+        # self.calculate_q_vector()
 
     def transform_image(self, data, weight):
-        q_rot = np.array([
-            np.sqrt(np.sum(self.q_unit_vec[:2] * self.q_unit_vec[:2], axis=0)) * ((self.q_unit_vec[1] > 0) * 2 - 1),
-            self.q_unit_vec[2]
-        ])
-        q_sq = np.sum(q_rot * q_rot, axis=0)
-        r = self.det_dist_px * q_rot * (np.sqrt(1.0 - 0.25 * q_sq) / (1.0 - 0.5 * q_sq))
-        beam_center = np.array([np.max(r[1]), np.max(r[0])])
-        transformed_shape = tuple(np.ceil(beam_center - np.array([np.min(r[1]), np.min(r[0])]) + 1).astype(int))
-        print(f"The image with shape: {self.shape}\nWill be transformed to shape: {transformed_shape}")
-        r_det_origin = beam_center[::-1].reshape((2, 1, 1)) - r
-        r_det_floor = np.floor(r_det_origin)
-        r_pixel_loc = r_det_floor.astype(int)
-        remainder = r_det_origin - r_det_floor
-        remainder_compliment = 1 - remainder
-        current_pixel_weight = np.prod(remainder_compliment, axis=0)
-        x_neighbor_weight = remainder[0] * remainder_compliment[1]
-        y_neighbor_weight = remainder_compliment[0] * remainder[1]
-        diag_neighbor_weight = np.prod(remainder, axis=0)
-
-        data_t = np.zeros(transformed_shape, dtype=np.float64)
-        weights_t = np.zeros(transformed_shape, dtype=np.float64)
-        for rr in range(self.shape[0]):
-            for cc in range(self.shape[1]):
-                col, row = r_pixel_loc[:, rr, cc]
-                data_t[row, col] += data[rr, cc] * current_pixel_weight[rr, cc]
-                weights_t[row, col] += weight[rr, cc] * current_pixel_weight[rr, cc]
-                data_t[row, col + 1] += data[rr, cc] * x_neighbor_weight[rr, cc]
-                weights_t[row, col + 1] += weight[rr, cc] * x_neighbor_weight[rr, cc]
-
-                data_t[row + 1, col] += data[rr, cc] * y_neighbor_weight[rr, cc]
-                weights_t[row + 1, col] += weight[rr, cc] * y_neighbor_weight[rr, cc]
-
-                data_t[row + 1, col + 1] += data[rr, cc] * diag_neighbor_weight[rr, cc]
-                weights_t[row + 1, col + 1] += weight[rr, cc] * diag_neighbor_weight[rr, cc]
-        return data_t, weights_t, beam_center
-
+        data_t =  gp.transform(data.astype(np.float64),
+                               self.incident_angle_d,
+                               self.calibration_poni.get_pixel1(),
+                               self.calibration_poni.get_poni1(),
+                               self.calibration_poni.get_poni2(),
+                               self.calibration_poni.get_dist(),
+                               self.tilt_angle_d)[0]
+        weights_t, beam_center =  gp.transform(weight.astype(np.float64),
+                                               self.incident_angle_d,
+                                               self.calibration_poni.get_pixel1(),
+                                               self.calibration_poni.get_poni1(),
+                                               self.calibration_poni.get_poni2(),
+                                               self.calibration_poni.get_dist(),
+                                               self.tilt_angle_d)
+        return (data_t, weights_t), beam_center
 
 
     def transform_reciprocal(self, data, exposure_time, weights=None, scale=1, plot=True):
@@ -189,77 +140,6 @@ class TransformGIX:
             pos = ax1.imshow(trasnformed_data_adj+1, extent=extent, norm=LogNorm(1, np.max(trasnformed_data_adj)))
             fig.colorbar(pos, ax=ax1, shrink=0.7)
         return transformed_data, transformed_weights, extent
-    
-    # def transform_cake(self, data, exposure_time, weights=None, bins_azi=1000, bins_q=1000, plot=True):
-    #     cake_shape = (bins_q, bins_azi)
-    #     data_cake = np.zeros(cake_shape, dtype=np.float64)
-    #     weights_cake = np.zeros(cake_shape, dtype=np.float64)
-    #     
-    #     data = data.astype(np.float64)
-    #     if weights is None:
-    #         weights = np.ones(data.shape, dtype=np.float64) * exposure_time
-    #     else:
-    #         weights = weights.astype(np.float64)
-    # 
-    #     q_magnitude = np.sqrt(np.sum(self.q_vec * self.q_vec, axis=0))
-    #     azimuthal = np.arctan2(self.q_xy, self.q_vec[2])
-    #     degree_cutoff = np.deg2rad(100)
-    #     invalid = np.where(np.logical_or(azimuthal < -degree_cutoff, azimuthal > degree_cutoff))
-    #     q_magnitude[invalid] = 0
-    #     azimuthal[invalid] = 0
-    #     weights[invalid] = 0
-    # 
-    #     b_azi_c = np.max(azimuthal)
-    #     b_q_c = np.max(q_magnitude)
-    #     extent = (np.min(azimuthal), np.max(azimuthal), np.min(q_magnitude), np.max(q_magnitude))
-    # 
-    #     azi_det_origin = b_azi_c - azimuthal
-    #     q_det_origin = b_q_c - q_magnitude
-    #     
-    #     azi_det_origin *= (cake_shape[1] - 2) / np.max(azi_det_origin)
-    #     q_det_origin *= (cake_shape[0] - 2) / np.max(q_det_origin)
-    # 
-    #     azi_det_origin_floor = np.floor(azi_det_origin)
-    #     q_det_origin_floor = np.floor(q_det_origin)
-    #     x_px_loc = azi_det_origin_floor.astype(int)
-    #     y_px_loc = q_det_origin_floor.astype(int)
-    # 
-    #     x_remainder = azi_det_origin - azi_det_origin_floor
-    #     y_remainder = q_det_origin - q_det_origin_floor
-    #     x_remainder_compliment = 1 - x_remainder
-    #     y_remainder_compliment = 1 - y_remainder
-    #     current_pixel_weight = x_remainder_compliment * y_remainder_compliment
-    #     x_neighbor_weight = x_remainder * y_remainder_compliment
-    #     y_neighbor_weight = x_remainder_compliment * y_remainder
-    #     diag_neighbor_weight = x_remainder * y_remainder
-    # 
-    #     for rr in range(data.shape[0]):
-    #         for cc in range(data.shape[1]):
-    #             row = y_px_loc[rr, cc]
-    #             col = x_px_loc[rr, cc]
-    #             data_cake[row, col] += data[rr, cc] * current_pixel_weight[rr, cc]
-    #             weights_cake[row, col] += weights[rr, cc] * current_pixel_weight[rr, cc]
-    #             data_cake[row, col + 1] += data[rr, cc] * x_neighbor_weight[rr, cc]
-    #             weights_cake[row, col + 1] += weights[rr, cc] * x_neighbor_weight[rr, cc]
-    # 
-    #             data_cake[row + 1, col] += data[rr, cc] * y_neighbor_weight[rr, cc]
-    #             weights_cake[row + 1, col] += weights[rr, cc] * y_neighbor_weight[rr, cc]
-    # 
-    #             data_cake[row + 1, col + 1] += data[rr, cc] * diag_neighbor_weight[rr, cc]
-    #             weights_cake[row + 1, col + 1] += weights[rr, cc] * diag_neighbor_weight[rr, cc]
-    #     if plot:
-    #         intesity_adjuster = exposure_time / weights_cake
-    #         intesity_adjuster[np.where(intesity_adjuster == np.infty)] = 0
-    #         data_cake_adj = intesity_adjuster * data_cake
-    #         fig = plt.figure(facecolor="w")
-    #         ax1 = plt.subplot()
-    #         pos = ax1.imshow(data_cake_adj+1, extent=extent, norm=LogNorm(1, np.max(data_cake)))
-    #         ax1.set_title("Caked image with exposure time adjustment")
-    #         ax1.set_xlabel(r"$\Omega$")
-    #         ax1.set_ylabel(r"$q\ (\mathregular{\AA}^{-1})$")
-    #         fig.colorbar(pos, ax=ax1, shrink=0.7)
-    # 
-    #     return data_cake, weights_cake, extent
         
     
 

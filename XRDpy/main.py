@@ -166,8 +166,9 @@ class FilmParse(ProcessParse):
                                       cal_t_file.is_file()):
             transformer = TransformGIX(self.incident, self.tilt)
             transformer.load(self.dir / "cal.poni")
-            print("Start image transform")
-            data_t, weight_t, beam_center_t = transformer.transform_image(data, weight)
+            # print("Start image transform")
+            (data_t, weight_t), beam_center_t = transformer.transform_image(data, weight)
+
             ai = pyFAI.load(self.dir / "cal.poni")
             pixel1 = ai.get_pixel1()
             pixel2 = ai.get_pixel2()

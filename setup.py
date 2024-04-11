@@ -13,7 +13,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='0.23',
+    version='1.0',
     packages=["XRDpy", "XRDpy.incident"],
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
@@ -32,9 +32,8 @@ setup(
         "numpy",
         "matplotlib",
         "pyFAI",
-        "pyyaml",
         "fabio",
-        "pathlib",
+        "gixpy",
         "pyside6",
         "pyopencl"
     ],
