@@ -53,7 +53,7 @@ PONI refers to *point of normal incidence* and is the point on the detector that
 
 - In the toolbar, select "Y" icon and select "Orient Y-axis downward"
 - In the right panel:
-    - Set wavelength to 1.54185 Angstrom
+    - Set wavelength to 1.5418 Angstrom
     - Select AgBh from calibrants
     - Select the ... button under "Detector" and then load from file
         - the install should save .h5 files for each eiger_stitch size in "Documents/XRDpy/detectors/". Select the file matching the calibration's stitch size.
