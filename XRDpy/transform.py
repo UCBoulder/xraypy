@@ -68,6 +68,7 @@ class TransformGIX:
                                                self.calibration_poni.get_poni2(),
                                                self.calibration_poni.get_dist(),
                                                self.tilt_angle_d)
+        print(f"Tranformed beam center: ({beam_center[0]}, {beam_center[1]})")
         return (data_t, weights_t), beam_center
 
 
