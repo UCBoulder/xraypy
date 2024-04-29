@@ -21,6 +21,8 @@ XRDpy depends on several other packages. All methods of installation below will 
 - pyside6
 - pyopencl
 
+An optional dependency is [gixpy](https://github.com/etortorici/gixpy) which is a C-compiled package for the transform. In order to install gixpy, you must be running on Windows and have MSVC installed to compile the package. It can be installed with pip if so. Having gixpy installed will allow the GIX transform to run very fast; if it isn't installed, it will run a pure-Python implementation of the transform which is a few orders of magnitude slower.
+
 ## Setting up Conda Environment
 
 In Windows, open an Anaconda prompt and run
@@ -35,12 +37,6 @@ To install from source code, clone the repository and `cd` into the repository a
 
 `pip install -U .`
 
-<!--## Install from PyPI
-
-With the conda environment activated
-
-`pip install XRDpy`-->
-
 # Included CLI and GUI programs
 
 ## pyFAI-calib2
@@ -48,6 +44,8 @@ With the conda environment activated
 This is included from pyFAI. Run `pyFAI-calib2` as a first step to generate a PONI file and call it "cal.poni" to place in the directory with the raw data. Using the auto-stitched TIFF file from a AgBh exposure is preferred.
 
 PONI refers to *point of normal incidence* and is the point on the detector that intersects the shortest line between the sample and the detector. In the orientation where the incident beam is normal to the detector and the sample is brought into the beam path, the PONI is the same as the beam center on the detector.
+
+This GUI can also be used to create and save masks for images.
 
 ### Calibration procedure
 
@@ -73,7 +71,7 @@ This will stitch all the raw files in the current working directory. It won't ad
 - *raw-stitched-data.tif*: The stitched data without adjustment of different pixel's exposure times.
 - *stitched-exposure-time.tif*: A TIFF where each pixel's intensity represents the exposure time (in seconds) that that pixel in the data set had due to the stitching. This can be used to adjust the intensity of the data in *raw-stitched-data.tif* while keeping track of weights.
 
-Running `XRD-stitch` is optional because other commands that rely on it will automatically perform the stitch if *raw-stitched-data.tif* and *stitch-exposure-time.tif* are not found. The exposure time is required to be given with a flag. Once an exposure time is given, it will be saved in *params.yaml* and won't need to be given again when running other programs that rely on `XRD-stitch`.
+It is not necessary to run `XRD-stitch` before transforming GIWAXS data with `XRD-film`, because, that command will also stitch. This command is meant for powder patterns using WAXS, and will copy a reduction Jupyter Notebook template to the data directory.
 
 ### Arguments
 
@@ -100,7 +98,7 @@ Running `XRD-stitch` is optional because other commands that rely on it will aut
 
 ## `XRD-film`
 
-Running this will look for data produced by `XRD-stitch`, and if that isn't found will first stitch the raw data. 
+Running this will look for data produced by `XRD-stitch`, and if that isn't found will first stitch the raw data. It will also copy a GIWAXS reduction template Jupyter Notebook in the data directory.
 
 This will transform data taken on aligned thin films (e.g. GIWAXS). An incident angle must be defined for the transform to work. This works for grazing incidence as well as non-grazing incidence.
 
