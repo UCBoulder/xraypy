@@ -26,7 +26,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='2.1',
+    version='2.0',
     packages=["XRDpy", "XRDpy.incident"],
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
@@ -49,10 +49,9 @@ setup(
         "pyside6",
         "pyopencl"
     ],
-    # extras_require={
-    #     "optional": [
-    #         "gixpy",
-    #     ]
-    # },
-    
+    extras_require={
+        "optional": [
+            "gixpy",
+        ]
+    },
 )
