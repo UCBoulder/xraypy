@@ -4,7 +4,8 @@ import yaml
 import fabio
 import pyFAI
 from pathlib import Path
-# import XRDpy.package_params as package
+import XRDpy.package_params as package
+import shutil
 from XRDpy.tiff_loader import load_from
 from XRDpy.transform import TransformGIX
 import matplotlib.pylab as plt
@@ -134,6 +135,13 @@ class ProcessParse:
             self.tilt = params["tilt"]
 
         self.save_yaml(self.make_params(), params_file)
+    
+    def copy_notebook(self, notebook):
+        if not (self.dir / "notebooks" / notebook).is_file() and (package.directory / notebook).is_file():
+            shutil.copyfile(package.directory / notebook, self.dir / notebook)
+            print(f"Copied {notebook} to {self.dir}")
+        else:
+            print(f"File {notebook} already exists in {self.dir / notebook} or does not exist in {package.directory}")
         
 
 class StitchParse(ProcessParse):
@@ -147,6 +155,8 @@ class StitchParse(ProcessParse):
         )
         self.parser.add_argument("exposure")
         self.stitch()
+        self.copy_notebook("reduce-WAXS.ipynb")
+        
 
 
 class FilmParse(ProcessParse):
@@ -229,7 +239,7 @@ class FilmParse(ProcessParse):
                 plt.title("1D reduction")
                 plt.xlabel(r"$q\ (\mathregular{\AA}^{-1})$")
                 plt.ylabel("Intensity")
-
+        self.copy_notebook("reduce-GIWAXS.ipynb")
         
         
     
