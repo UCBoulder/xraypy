@@ -137,11 +137,13 @@ class ProcessParse:
         self.save_yaml(self.make_params(), params_file)
     
     def copy_notebook(self, notebook):
-        if not (self.dir / "notebooks" / notebook).is_file() and (package.directory / notebook).is_file():
-            shutil.copyfile(package.directory / notebook, self.dir / notebook)
-            print(f"Copied {notebook} to {self.dir}")
+        if (self.dir / notebook).is_file():
+            print(f'File {notebook} already exists in "{self.dir}"')
+        elif not (package.directory / "Jupyter-Notebooks" / notebook).is_file():
+            print(f'File {notebook} does not exist in "{package.directory / 'Jupyter-Notebooks'}"')
         else:
-            print(f"File {notebook} already exists in {self.dir / notebook} or does not exist in {package.directory}")
+            shutil.copyfile(package.directory / "Jupyter-Notebooks" / notebook, self.dir / notebook)
+            print(f'Copied {notebook} to "{self.dir}"')
         
 
 class StitchParse(ProcessParse):

@@ -4,8 +4,8 @@ import shutil
 import yaml
 import XRDpy.package_params as package
 
-detector_dir = package.directory / "detectors"
-notebooks_dir = package.directory / "notebooks"
+detector_dir = package.directory / "Detectors"
+notebooks_dir = package.directory / "Jupyter-Notebooks"
 if package.directory.exists():
     if detector_dir.exists():
         shutil.rmtree(detector_dir)
@@ -26,7 +26,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='2.0',
+    version='2.2',
     packages=["XRDpy", "XRDpy.incident"],
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
