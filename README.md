@@ -27,9 +27,9 @@ An optional dependency is [gixpy](https://github.com/etortorici/gixpy) which is 
 
 In Windows, open an Anaconda prompt and run
 
-`conda create --new XRD`
+`conda create --new xrd`
 
-`conda activate XRD`
+`conda activate xrd`
 
 ## Install from source
 
