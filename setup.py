@@ -26,7 +26,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='2.2',
+    version='2.3',
     packages=["XRDpy", "XRDpy.incident"],
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],

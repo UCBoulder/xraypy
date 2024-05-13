@@ -137,8 +137,3 @@ class Stitcher:
                 pass
         weight *= self.exposure_time
         return data, weight
-
-
-if __name__ == "__main__":
-    directory = Path("C:\\Users\\Teddy\\OneDrive - UCB-O365\\Rogerslab3\\Teddy\\TPP Films\\BTB-TPP\\2024 Film Growth\\Film 2\\XRD\\TT5-09\\Thick sio2\\rotation 2\\non-grazing")
-    load_from(directory, 600)

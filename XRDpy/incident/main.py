@@ -31,36 +31,46 @@ def plot():
     
     usr_dir = package.directory / args.user / "om_scans"
 
-    if args.date is None:
-        date = datetime.now()
-        date_name = f"{date.year}{date.month:02d}{date.day:02d}"
-    else:
-        date_name = args.date
-        if len(date_name) != 8:
-            raise ValueError(f"The given date must be in the form YYYYMMDD.")
-        try:
-            int(date_name)
-        except ValueError:
-            raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
-    
-    if args.number is None:
-        latest_num = 1
-        for sister_dir in usr_dir.glob(f"{date_name}"):
-            sister_num = int(sister_dir.name.split("-")[-1])
-            if sister_num > latest_num:
-                latest_num = sister_num
-    else:
-        date_name = f"{date_name}-{int(args.number)}"
-
-    directory = usr_dir / date_name.rstrip("-1")
-
-    if args.dir is not None:
-        if args.dir == "CWD":
-            directory = Path.cwd()
+    try:
+        if args.date is None:
+            date = datetime.now()
+            date_name = f"{date.year}{date.month:02d}{date.day:02d}"
         else:
-            directory = Path(args.dir)
+            date_name = args.date
+            if len(date_name) != 8:
+                raise ValueError(f"The given date must be in the form YYYYMMDD.")
+            try:
+                int(date_name)
+            except ValueError:
+                raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
 
-    angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
+        if args.number is None:
+            dir_num = max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1)
+        else:
+            dir_num = int(args.number)
+        date_name = f"{date_name}-{dir_num}"
+
+        directory = usr_dir / date_name.rstrip("-1")
+
+        if args.dir is not None:
+            if args.dir.upper() == "CWD":
+                directory = Path.cwd()
+            else:
+                directory = Path(args.dir)
+
+        angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
+    except FileNotFoundError:
+        print(f"Could not find data from today: {date_name}.")
+        print(f"Looking for data in the latest directory for user: {args.user}...")
+        latest_dir = max(usr_dir.glob(f"*"), key=lambda dir: int(dir.name.split("-")[0]), default=None)
+        if latest_dir is not None:
+            directory = latest_dir
+        else:
+            raise FileNotFoundError(f"Could not find any data for user: {args.user}!")
+        dir_num = max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1)
+
+        directory = usr_dir / date_name.rstrip("-1")
+        angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
 
     print(f"Loaded {len(angles) + 1} files from {directory.as_posix()}")
     print(f"Found {len(angles)} angles in the scan")

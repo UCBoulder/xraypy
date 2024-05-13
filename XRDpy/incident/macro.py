@@ -18,7 +18,7 @@ def create_file(directory: Path, angles: list[float], tag: str = "") -> None:
     macroname = f'Incident_angle_tuning_macro-{date.year:02d}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
     print("Writing Macro...")
     with open(directory / macroname, 'w') as f:
-        f.write("umvr wbs -5\n")  # move beam stop out of the way
+        f.write("umvr wbs 5\n")  # move beam stop out of the way
         f.write("umvr z -10\n")  # move sample out of the way
         f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
         f.write("umvr z 10\n")  # move sample back into beam
@@ -28,7 +28,7 @@ def create_file(directory: Path, angles: list[float], tag: str = "") -> None:
             formatted_angle = "{}_{}".format(*str(om).split("."))
             f.write(f"eiger_run 0.1 om_scan_{tag}{formatted_angle}_degrees.tif\n")
 
-        f.write("umvr wbs 5\n")
+        f.write("umvr wbs -5\n")
         f.write("umv om 0\n")
     print("Macro written")
     print("Copy and paste the following into SAXS to run the macro:")
