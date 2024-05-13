@@ -8,7 +8,7 @@ from pyFAI.detectors import Eiger1M
 def load_from(directory: Path, exposure_time: int = None):
     exposure_time = handle_yaml(directory, exposure_time)
     data_file_name = "raw-stitched-data.tif"
-    weights_file_name = "stitched-exposure-time.tif"
+    weights_file_name = "flat-field.tif"
     if (directory / data_file_name).is_file() and (directory / weights_file_name).is_file():
         print("Found stitched files.")
         data = fabio.open(directory / data_file_name).data
@@ -87,8 +87,8 @@ class Stitcher:
     OVERLAP = 10
     DEAD_BAND_PIXELS = 37
     
-    def __init__(self, exposure_time: int):
-        self.exposure_time = int(int(exposure_time) / 2)
+    def __init__(self):
+        self.weight_per = 0.5
         self.detector = Detector()
         self.stitch_rows = 0
         self.stitch_columns = 0
@@ -112,7 +112,7 @@ class Stitcher:
                     self.stitch_columns = stitch_col
             except ValueError:
                 pass
-        print(f"Stitching an eiger_run {self.stitch_rows} {self.stitch_columns} {self.exposure_time * 2}")
+        print(f"Stitching an eiger_run {self.stitch_rows} {self.stitch_columns}")
         self._determine_size()
 
         data = np.zeros(self.size, dtype=np.uint32)
@@ -135,5 +135,5 @@ class Stitcher:
                 weight[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += mask
             except ValueError:
                 pass
-        weight *= self.exposure_time
+        weight *= self.weight_per
         return data, weight
