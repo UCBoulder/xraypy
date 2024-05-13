@@ -50,7 +50,7 @@ class TransformGIX:
         self.calibration_poni.load(poni_file_name)
         self.shape = self.calibration_poni.get_shape()
 
-    def transform_image(self, data, weight):
+    def transform_image(self, data, flat_field):
         try:
             data_t =  gp.transform(data.astype(np.float64),
                                    self.incident_angle_d,
@@ -59,19 +59,19 @@ class TransformGIX:
                                    self.calibration_poni.get_poni2(),
                                    self.calibration_poni.get_dist(),
                                    self.tilt_angle_d)[0]
-            weights_t, beam_center =  gp.transform(weight.astype(np.float64),
-                                                   self.incident_angle_d,
-                                                   self.calibration_poni.get_pixel1(),
-                                                   self.calibration_poni.get_poni1(),
-                                                   self.calibration_poni.get_poni2(),
-                                                   self.calibration_poni.get_dist(),
-                                                   self.tilt_angle_d)
+            flat_t, beam_center =  gp.transform(flat_field.astype(np.float64),
+                                                self.incident_angle_d,
+                                                self.calibration_poni.get_pixel1(),
+                                                self.calibration_poni.get_poni1(),
+                                                self.calibration_poni.get_poni2(),
+                                                self.calibration_poni.get_dist(),
+                                                self.tilt_angle_d)
         except NameError:
             print("gixpy not installed, it is recommended to install it to increase speed")
-            data_t, weights_t, beam_center = self.transform_image_slow(data, weight)
+            data_t, flat_t, beam_center = self.transform_image_slow(data, weight)
             
         print(f"Tranformed beam center: ({beam_center[0]}, {beam_center[1]})")
-        return (data_t, weights_t), beam_center
+        return (data_t, flat_t), beam_center
     
     def transform_image_slow(self, data, weight):
         to_pixel = 1. / self.calibration_poni.get_pixel1()

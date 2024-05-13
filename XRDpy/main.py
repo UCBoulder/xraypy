@@ -66,17 +66,17 @@ class ProcessParse:
 
         if self.args.override:
             stitched_data_file = self.dir / "raw-stitched-data.tif"
-            stitched_weight_file = self.dir / "stitched-exposure-time.tif"
+            flat_field_file = self.dir / "flat-field.tif"
             if stitched_data_file.is_file():
                 stitched_data_file.unlink()
-            if stitched_weight_file.is_file():
-                stitched_weight_file.unlink()
+            if flat_field_file.is_file():
+                flat_field_file.unlink()
 
         self.load_params()
-        data, weight = load_from(self.dir, self.exposure)
+        data, flat_field = load_from(self.dir, self.exposure)
 
         if self.args.plot:
-            adjuster = self.exposure / weight
+            adjuster = self.exposure / flat_field
             adjuster[np.where(adjuster == np.infty)] = 0.0
             data_adj = data * adjuster
             fig = plt.figure(figsize=self.FIG_SIZE, facecolor="w")
@@ -87,7 +87,7 @@ class ProcessParse:
             ax1.set_ylabel("row (pixels)")
             fig.colorbar(pos, ax=ax1, shrink=0.7)
 
-        return data, weight
+        return data, flat_field
         
     def make_params(self):
         params = {"exposure": self.exposure,
@@ -167,19 +167,19 @@ class FilmParse(ProcessParse):
             "XRD-film",
             "Transform stitched images into reciprocal space. Assumes the sample is an aligned thin film. Requires an incident angle, but this can be given through 'params.yaml'"
         )
-        data, weight = self.stitch()
+        data, flat_field = self.stitch()
 
         data_t_file = self.dir / "image-transformed.tif"
-        weight_t_file = self.dir / "weights-transformed.tif"
+        flat_t_file = self.dir / "flat-field-transformed.tif"
         cal_t_file = self.dir / "cal-transformed.poni"
 
         if self.args.override or not (data_t_file.is_file() and
-                                      weight_t_file.is_file() and
+                                      flat_t_file.is_file() and
                                       cal_t_file.is_file()):
             transformer = TransformGIX(self.incident, self.tilt)
             transformer.load(self.dir / "cal.poni")
             # print("Start image transform")
-            (data_t, weight_t), beam_center_t = transformer.transform_image(data, weight)
+            (data_t, flat_t), beam_center_t = transformer.transform_image(data, flat_field)
 
             ai = pyFAI.load(self.dir / "cal.poni")
             pixel1 = ai.get_pixel1()
@@ -188,16 +188,16 @@ class FilmParse(ProcessParse):
             ai.poni2 = beam_center_t[1] * pixel2
             ai.detector = pyFAI.detectors.Detector(pixel1=pixel1, pixel2=pixel2, max_shape=data_t.shape, orientation=2)
             ai.save(cal_t_file)
-            self.save_tiff(data_t, "transformed-data.tif")
-            self.save_tiff(weight_t, "transformed-data-weights.tif")
+            self.save_tiff(data_t, "image-transformed.tif")
+            self.save_tiff(flat_t, "flat-field-transformed.tif")
         else:
-            print("Found preexisting transform to load")
+            print("Found preexisting transform to load. To override, run again with --override or -O")
             data_t = fabio.open(self.dir / "image-transformed.tif")
-            weight_t = fabio.open(self.dir / "weights-transformed.tif")
+            flat_t = fabio.open(self.dir / "flat-field-transformed.tif")
             ai = pyFAI.load(cal_t_file)
 
         if self.args.cake or self.args.reduce or self.args.plot:
-            adjuster = self.exposure / weight_t
+            adjuster = self.exposure / flat_t
             adjuster[np.where(adjuster == np.infty)] = 0.0
             data_adj = data_t * adjuster
 
@@ -211,7 +211,7 @@ class FilmParse(ProcessParse):
             fig.colorbar(pos, ax=ax1, shrink=0.7)
         
         if self.args.cake or self.args.reduce:
-            mask = np.logical_not(weight_t)
+            mask = np.logical_not(flat_t)
         
         if self.args.cake:
             cake_file = self.dir / "cake.edf"
