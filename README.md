@@ -2,58 +2,15 @@
 
 Tools to assist in the operation and analysis of the WAXS/SAXS system in CU Physics. This software, installed on the computer running the system, can be used to assist in GIWAXS experiments, and can be installed on any computer to assist in data stitching, transformations, and reductions.
 
-The system utilizes a Dectris Eiger R 1M CCD array to produce images of the X-ray scattering for WAXS/SAXS/GIWAXS/GISAXS experiments. The detector has 1065 rows and 1030 columns of pixels. However, there is a band of 37 pixel rows that are not active in the middle of the array. The eiger_stitch command for the saxs program produces raw TIFF files with the file format R-C-S where R represents a row, C a column, and S is a number either 1 or 2 for the two images used to stitch together data in the band of inactive pixels. A motor moves the detector to two positions per stitch so that the two images overlap in a way to fill in the band. Any additional rows or columns of stitching will have a 10 pixel overlap. This causes 3 distinct regions in the stitch:
 
-- Regions that get half the counts (54 rows of pixels in the middle, and 37 rows at the top and bottom)
-- Regions that get the normal amount of counts (parts where the two stitched images overlap)
-- Regions that get double counts (10 columns of pixels where separate stitch images overlap)
 
-eiger_stitch will produce a stitched image which accounts for these regions by multiplying the half-count regions by 2 and the double-count regions by 0.5; however, there are some issues with this if you care about details. If you save the raw R-C-S files, XRDpy is able to stitch them together in a slightly different way. XRDpy will:
+## XRDpy GIX transformations
 
-- locate dead, hot, and problematic pixels and mask them
-- stitch the images together
-- instead of adjusting the counts, it will track how many images contributed to a single pixel in the overall stitch.
-- produce a stitch without exposure time adjustment
-- produce a "flat field" which can tell your analysis software how sensitive each pixel is
-    - Pixels which only had 1 image contribute to it are considered "half-senstive"
-    - Pixels which have 2 images contributing to it are considered "full-sensitive"
-    - Pixels which have 3 images contributing to it are considered "three-halves-sensitive"
-    - 
+When you do GIWAXS or GISAXS experiments, the images require a transformation to accomadate the [missing wedge](http://gisaxs.com/index.php/GI_missing_wedge). This is done using the [gixpy](https://github.com/etortorici/gixpy) package; you can reference gixpy's readme for more information on the transformation and why it is needed to be done.
 
 # Installation
 
-It is recommended to create a unique Anaconda environment for the installation because the install will generate globally callable commands from the terminal, and it is nice to isolate these within an Anaconda environment. This guide assumes you will call the environment "XRD", but you can choose any name you wish.
-
-<!--There are two options to install: from PyPI (with pip) or from source.-->
-
-## Dependencies
-
-XRDpy depends on several other packages. All methods of installation below will automatically install the required dependencies in your conda environment. These are:
-
-- numpy
-- matplotlib
-- pyFAI
-- pyyaml
-- fabio
-- pathlib
-- pyside6
-- pyopencl
-
-An optional dependency is [gixpy](https://github.com/etortorici/gixpy) which is a C-compiled package for the transform. In order to install gixpy, you must be running on Windows and have MSVC installed to compile the package. It can be installed with pip if so. Having gixpy installed will allow the GIX transform to run very fast; if it isn't installed, it will run a pure-Python implementation of the transform which is a few orders of magnitude slower.
-
-## Setting up Conda Environment
-
-In Windows, open an Anaconda prompt and run
-
-`conda create --new xrd`
-
-`conda activate xrd`
-
-## Install from source
-
-To install from source code, clone the repository and `cd` into the repository and run (make sure you have the conda environment activated)
-
-`pip install -U .`
+It is recommended to create a unique Anaconda environment for the installation because the install will generate globally callable commands from the terminal, and it is nice to isolate these within an Anaconda environment. [Detailed installation instructions can be found on the wiki](https://github.com/UCBoulder/XRDpy/wiki/Detailed-Installation-Instructions-(Windows)).
 
 # Included CLI and GUI programs
 
