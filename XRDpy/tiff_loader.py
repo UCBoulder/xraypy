@@ -15,7 +15,7 @@ def load_from(directory: Path, exposure_time: int = None):
         weight = fabio.open(directory / weights_file_name).data
     else:
         print("Stitching raw images.")
-        stitcher = Stitcher(exposure_time)
+        stitcher = Stitcher()
         data, weight = stitcher.load_data(directory)
         data_im = fabio.tifimage.tifimage(data)
         weight_im = fabio.tifimage.tifimage(weight)
@@ -115,8 +115,8 @@ class Stitcher:
         print(f"Stitching an eiger_run {self.stitch_rows} {self.stitch_columns}")
         self._determine_size()
 
-        data = np.zeros(self.size, dtype=np.uint32)
-        weight = np.zeros(self.size, dtype=np.uint32)
+        data = np.zeros(self.size, dtype=np.float64)
+        weight = np.zeros(self.size, dtype=np.float64)
         base_mask = np.ones((self.detector.ROWS, self.detector.COLS), dtype=np.uint32)
         base_mask[self.detector.DEAD_PIXELS] = 0
         for row_start_quad in self.detector.ISSUE_QUADS[0]:

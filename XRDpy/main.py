@@ -59,13 +59,17 @@ class ProcessParse:
             self.exposure = int(self.args.exposure)
         else:
             self.exposure = None
-        if self.args.incident is not None:
-            self.incident = float(self.args.incident)
-        else:
+        try:
+            if self.args.incident is not None:
+                self.incident = float(self.args.incident)
+            else:
+                self.incident = None
+            if self.args.tilt is not None:
+                self.tilt = float(self.args.tilt)
+            else:
+                self.tilt = None
+        except AttributeError:
             self.incident = None
-        if self.args.tilt is not None:
-            self.tilt = float(self.args.tilt)
-        else:
             self.tilt = None
         if self.args.jupyter_notebook is not None:
             self.jupyter_notebook = self.args.jupyter_notebook.replace("'", "").replace('"', '').split(",")
@@ -110,7 +114,8 @@ class ProcessParse:
         if (self.dir / notebook).is_file():
             print(f'File {notebook} already exists in "{self.dir}"')
         elif not (package.directory / "Jupyter-Notebooks" / notebook).is_file():
-            print(f'File {notebook} does not exist in "{package.directory / 'Jupyter-Notebooks'}"')
+            directory = package.directory / "Jupyter-Notebooks"
+            print(f'File {notebook} does not exist in "{directory}"')
         else:
             shutil.copyfile(package.directory / "Jupyter-Notebooks" / notebook, self.dir / notebook)
             print(f'Copied {notebook} to "{self.dir}"')
@@ -119,7 +124,8 @@ class ProcessParse:
         if (self.dir / filename).is_file():
             print(f'File {filename} already exists in "{self.dir}"')
         elif not (package.directory / "User-files" / filename).is_file():
-            print(f'File {filename} does not exist in "{package.directory / 'User-files'}"')
+            directory = package.directory / 'User-files'
+            print(f'File {filename} does not exist in "{directory}"')
         else:
             shutil.copyfile(package.directory / "User-files" / filename, self.dir / filename)
             print(f'Copied {filename} to "{self.dir}"')
@@ -187,10 +193,7 @@ class FilmParse(ProcessParse):
 
 def stitch():
     parser = StitchParse()
-    if parser.args.plot:
-        plt.show()
+    
 
 def film():
     parser = FilmParse()
-    if parser.args.plot:
-        plt.show()
