@@ -31,33 +31,32 @@ def plot():
     
     usr_dir = package.directory / args.user / "om_scans"
 
-    try:
-        if args.date is None:
-            date = datetime.now()
-            date_name = f"{date.year}{date.month:02d}{date.day:02d}"
-        else:
-            date_name = args.date
-            if len(date_name) != 8:
-                raise ValueError(f"The given date must be in the form YYYYMMDD.")
-            try:
-                int(date_name)
-            except ValueError:
-                raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
-
-        if args.number is None:
+    if args.date is None:
+        date = datetime.now()
+        date_name = f"{date.year}{date.month:02d}{date.day:02d}"
+    else:
+        date_name = args.date
+        if len(date_name) != 8:
+            raise ValueError(f"The given date must be in the form YYYYMMDD.")
+        try:
+            int(date_name)
+        except ValueError:
+            raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
+    
+    if args.number is None:
             dir_num = max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1)
+    else:
+        dir_num = int(args.number)
+    date_name = f"{date_name}-{dir_num}"
+    directory = usr_dir / date_name.rstrip("-1")
+
+    if args.dir is not None:
+        if args.dir.upper() == "CWD":
+            directory = Path.cwd()
         else:
-            dir_num = int(args.number)
-        date_name = f"{date_name}-{dir_num}"
+            directory = Path(args.dir)
 
-        directory = usr_dir / date_name.rstrip("-1")
-
-        if args.dir is not None:
-            if args.dir.upper() == "CWD":
-                directory = Path.cwd()
-            else:
-                directory = Path(args.dir)
-
+    try:
         angles, intensity_data, direct_beam = iplot.load_tiff_data(directory)
     except FileNotFoundError:
         print(f"Could not find data from today: {date_name}.")

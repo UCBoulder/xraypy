@@ -75,14 +75,15 @@ class TransformGIX:
     
     def transform_image_slow(self, data, weight):
         to_pixel = 1. / self.calibration_poni.get_pixel1()
-        beam_center = np.array((data.shape[0] - self.calibration_poni.get_poni1(), self.calibration_poni.get_poni2())) * to_pixel
+        beam_center_x = self.calibration_poni.get_poni2() * to_pixel
+        beam_center_y = data.shape[0] - self.calibration_poni.get_poni1() * to_pixel
         det_dist = self.calibration_poni.get_dist() * to_pixel
         det_dist_sq = det_dist * det_dist
         incident_angle = np.radians(self.incident_angle_d)
         cos_incident = np.cos(incident_angle)
         tilt_angle = np.radians(self.tilt_angle_d)
-        x = beam_center[1] - np.arange(data.shape[1])
-        y = (beam_center[0] - np.arange(data.shape[0])).reshape((data.shape[0], 1))
+        x = beam_center_x - np.arange(data.shape[1])
+        y = beam_center_y - np.arange(data.shape[0]).reshape((data.shape[0], 1))
         if tilt_angle:
             costilt = np.cos(tilt_angle)
             sintilt = np.sin(tilt_angle)
@@ -105,8 +106,8 @@ class TransformGIX:
         new_beam_center = np.array((np.max(r_z), np.max(r_xy)))
         min_r = np.array(np.min(r_z), np.min(r_xy))
         new_shape = (int(np.ceil(new_beam_center[0] - min_r[0])) + 1, int(np.ceil(new_beam_center[1] - min_r[1])) + 1)
-        x_deto = beam_center[1] - r_xy
-        y_deto = beam_center[0] - r_z
+        x_deto = beam_center_x - r_xy
+        y_deto = beam_center_y - r_z
         x_floor = np.floor(x_deto)
         y_floor = np.floor(y_deto)
         x_remainder = x_deto - x_floor
