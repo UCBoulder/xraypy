@@ -44,11 +44,11 @@ def plot():
             raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
     
     if args.number is None:
-            dir_num = max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1)
+        directory = max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1).rstrip("-1")
     else:
         dir_num = int(args.number)
-    date_name = f"{date_name}-{dir_num}"
-    directory = usr_dir / date_name.rstrip("-1")
+        date_name = f"{date_name}-{dir_num}"
+        directory = usr_dir / date_name.rstrip("-1")
 
     if args.dir is not None:
         if args.dir.upper() == "CWD":
