@@ -74,7 +74,9 @@ class TransformGIX:
     
     def prep_transform(self, rot2=0.0):
         det_dist = self.calibration_poni.get_dist()
+        # x is to the right from the PONI
         x = (np.arange(self.shape[1], dtype=np.float64) + 0.5) * self.calibration_poni.pixel2 - self.calibration_poni.poni2
+        # z is up from the PONI
         z = ((self.shape[0] - 0.5) - np.arange(self.shape[0], dtype=np.float64).reshape(-1, 1)) * self.calibration_poni.pixel1 - self.calibration_poni.poni1
         r = np.sqrt(x * x + z * z)
         self.solid_angle = np.cos(np.arctan2(r, det_dist)) ** 3
@@ -100,7 +102,21 @@ class TransformGIX:
         x = r * q_xy / (q * self.calibration_poni.pixel2)
         z = r * q_z / (q * self.calibration_poni.pixel1)
         
-    def transform_image_python(self, data, flat_field, rot2=0.0):
+        self.col = np.floor(self.x)
+        self.row = np.floor(self.z)
+        remainder_col = self.x - self.col
+        remainder_row = self.z - self.row
+        remainder_col_comp = 1 - self.remainder_col
+        remainder_row_comp = 1 - self.remainder_row
+        self.weight_current = remainder_col_comp * remainder_row_comp
+        self.weight_col_neighbor = remainder_col * remainder_row_comp
+        self.weight_row_neighbor = remainder_col_comp * remainder_row
+        self.weight_dia_neighbor = remainder_col * remainder_row
         
+    def transform_image_python(self, data, flat_field, rot2=0.0):
+
+        for rr in range(self.shape[0]):
+            for cc in range(self.shape[1]):
+                
 
         
