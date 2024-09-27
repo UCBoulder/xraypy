@@ -6,7 +6,7 @@ import pyFAI
 from pathlib import Path
 import XRDpy.package_params as package
 import shutil
-from XRDpy.tiff_loader import load_from
+from XRDpy.tiff_loader import load_from, load_from2
 from XRDpy.transform import TransformGIX
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
@@ -36,7 +36,9 @@ class ProcessParse:
     ]
 
     def __init__(self, program_name: str, description: str):
-        self.parser = argparse.ArgumentParser(prog=program_name, description=description, epilog="Author: Teddy Tortorici edward.tortorici@colorado.edu")
+        self.parser = argparse.ArgumentParser(prog=program_name,
+                                              description=description,
+                                              epilog="Author: Teddy Tortorici edward.tortorici@colorado.edu")
         for flag in self.FLAGS_VAL:
             self.parser.add_argument(*flag)
         for flag in self.FLAGS_BOOl:
@@ -45,6 +47,7 @@ class ProcessParse:
         self.exposure = None
         self.incident = None
         self.tilt = None
+        self.waveguiding = None
         self.jupyter_notebook = None
         self.file = None
 
@@ -68,9 +71,14 @@ class ProcessParse:
                 self.tilt = float(self.args.tilt)
             else:
                 self.tilt = None
+            if self.args.waveguide is not None:
+                self.waveguiding = self.args.waveguide
+            else:
+                self.waveguiding = None
         except AttributeError:
             self.incident = None
             self.tilt = None
+            self.waveguiding = None
         if self.args.jupyter_notebook is not None:
             self.jupyter_notebook = self.args.jupyter_notebook.replace("'", "").replace('"', '').split(",")
             for ii, notebook in enumerate(self.jupyter_notebook):
@@ -157,6 +165,41 @@ class StitchParse(ProcessParse):
         self.copy_files()
 
 
+class StitchParse2(ProcessParse):
+    FLAGS_VAL = ProcessParse.FLAGS_VAL[1:]
+    DATA = ""
+
+    def __init__(self):
+        super().__init__(
+            "stitch",
+            "Stitch together raw images from Eiger R 1M that eiger-stitch produced.",
+        )
+        self.parser.add_argument("rows")
+        self.parser.add_argument("columns")
+        self.stitch()
+    
+    def stitch(self):
+        self.args = self.parser.parse_args()
+
+        if self.args.dir is None:
+            self.dir = Path.cwd()
+        else:
+            self.dir = Path(self.DATA)
+        
+        newest_file = self.get_newest_file(self.dir)
+        filename_base = newest_file.name.strip(".tif")
+
+        self.save_params()
+        data, flat_field = load_from2(self.dir, int(self.args.rows), int(self.args.columns), filename_base)
+
+        return data, flat_field
+
+    @staticmethod
+    def get_newest_file(directory: Path) -> Path:
+        files = list(directory.glob("*.tif"))
+        return max(files, key=lambda f: f.stat().st_mtime)
+
+
 class FilmParse(ProcessParse):
     def __init__(self):
         super().__init__(
@@ -165,13 +208,14 @@ class FilmParse(ProcessParse):
         )
         self.parser.add_argument("exposure")
         self.parser.add_argument("incident")
+        self.parser.add_argument('-W', '--waveguide', action='store_true')
         data, flat_field = self.stitch()
 
         data_t_filename = "image-transformed.tif"
         flat_t_filename = "flat-field-transformed.tif"
         cal_t_filename = "cal-transformed.poni"
 
-        transformer = TransformGIX(self.incident, self.tilt)
+        transformer = TransformGIX(self.incident, self.tilt, self.waveguiding)
         transformer.load(self.dir / "cal.poni")
         # print("Start image transform")
         (data_t, flat_t), beam_center_t = transformer.transform_image(data, flat_field)
@@ -193,6 +237,10 @@ class FilmParse(ProcessParse):
 
 def stitch():
     parser = StitchParse()
+
+
+def stitch2():
+    parser = StitchParse2()
     
 
 def film():

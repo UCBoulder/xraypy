@@ -41,6 +41,7 @@ setup(
             "GISAXS=XRDpy.main:film",
             "WAXS=XRDpy.main:stitch",
             "SAXS=XRDpy.main:stitch",
+            "stitch=XRDpy.main:stitch2",
             "GI-scan=XRDpy.incident.main:make",
             "GI-move=XRDpy.incident.main:move",
             "GI-plot=XRDpy.incident.main:plot",
