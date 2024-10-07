@@ -141,7 +141,7 @@ class TPP:
         print(" - Set background constant with .set_background_constant(background_constant)")
         print(" - Set q_min and q_max to the desired range of q values to fit using `.set_range(q_min, q_max)`.")
 
-    def initialize_fit(self, hkl_override=None, q_buffer=1.0):
+    def initialize_fit(self, hkl_override=None, q_buffer=1.0, azi_buffer=0.):
         self.lorentz = self.lorentz_polarization_factor()
         self.hex_multiplicity = []
         self.hex_hkl = []
@@ -164,12 +164,10 @@ class TPP:
                 for h, k, l in self.hkl:
                     q_xy_sq = TWO_PI * TWO_PI * 4.0 / 3.0 * (h * h + h * k + k * k) / (self.hex[0] * self.hex[0])
                     q_z_sq = TWO_PI * TWO_PI * l * l / (self.hex[1] * self.hex[1])
-                    q_xy = np.sqrt(q_xy_sq)
-                    q_z = np.sqrt(q_z_sq)
                     q_center.append(np.sqrt(q_xy_sq + q_z_sq))
-                    q_xy_list.append(q_xy)
-                    q_z_list.append(q_z)
-                    azi_list.append(np.rad2deg(np.arctan2(q_z, q_xy)))
+                    # q_xy_list.append(q_xy)
+                    # q_z_list.append(q_z)
+                    azi_list.append(np.rad2deg(np.arctan2(np.sqrt(q_z_sq), np.sqrt(q_xy_sq))))
             else:
                 for h, k, l in self.hkl:
                     q = 2 * np.pi * np.sqrt(4.0 / 3.0 * (h * h + h * k + k * k) / (self.hex[0] * self.hex[0]) + l * l / (self.hex[1] * self.hex[1]))
@@ -186,15 +184,34 @@ class TPP:
         self.hex_hkl = self.hex_hkl[sort_ind]
         self.hex_multiplicity = self.hex_multiplicity[sort_ind].reshape((len(self.hex_multiplicity), 1))
 
-        if self.giwaxs:
-            q_xy_list = np.array(q_xy_list)[sort_ind]
-            q_z_list = np.array(q_z_list)[sort_ind]
-            azi_list = np.array(azi_list)[sort_ind]
-            
-
         hh_hk_kk = 4. / 3. * (self.hex_hkl[:, 0] * self.hex_hkl[:, 0] + self.hex_hkl[:, 0] * self.hex_hkl[:, 1] + self.hex_hkl[:, 1] * self.hex_hkl[:, 1])
         l_sq = (self.hex_hkl[:, 2] * self.hex_hkl[:, 2])
         self.hh_hk_kk_ll = np.column_stack((hh_hk_kk, l_sq))
+
+        if self.giwaxs:
+            azi_list = np.array(azi_list)[sort_ind]
+
+            hkl_full = self.hex_hkl
+            mult_full = self.hex_multiplicity
+            hhhkkkll = self.hh_hk_kk_ll
+            self.hex_hkl = {}
+            self.hex_multiplicity = {}
+            self.hh_hk_kk_ll = {}
+            self.hex_peak_heights = {}
+            for key in self.keys:
+                self.hex_hkl[key] = []
+                self.hex_multiplicity[key] = []      
+                sector_start, sector_end = self.sectors[key]
+                sector_start -= azi_buffer
+                sector_end += azi_buffer
+                print(f"Sector: '{key}' with range ({sector_start}--{sector_end})\u00B0:")
+                for ii, (h, k, l) in enumerate(hkl_full):
+                    if azi_list[ii] < sector_end and azi_list[ii] > sector_start:
+                        print(f"({h}{k}{l}) -- q = {q_center[ii]:.4f} -- \u03C8 = {azi_list[ii]}\u00B0")
+                        self.hex_hkl[key].append(hkl_full[ii])
+                        self.hex_multiplicity[key].append(mult_full[ii])
+                        self.hh_hk_kk_ll[key].append(hhhkkkll[ii])
+                self.hex_peak_heights[key] = np.ones_like(self.hex_multiplicity[key]) * self.init_peak_height
 
         print('Number of possible reflections within data: %d' % len(self.hex_hkl))
         for ii in range(len(self.hex_hkl)):
@@ -336,7 +353,7 @@ class TPP:
 
     def show_data(self, fig_size=None):
         if self.giwaxs:
-            num_sectors = len(self.q.keys())
+            num_sectors = len(self.keys)
             if fig_size is None:
                 fig_size = (10, 2 * num_sectors)
             fig, axes = plt.subplots(2, round(0.5 * num_sectors))
@@ -383,7 +400,7 @@ class TPP:
     def show_fit(self, fig_size=None):
         if self.giwaxs:
             fig, axes = self.show_data(fig_size)
-            for ii, sector in enumerate(self.q.keys()):
+            for ii, sector in enumerate(self.keys):
                 fit = self.current_fit(sector)
                 row = int(0.5 * ii)
                 col = ii % 2
@@ -1090,85 +1107,7 @@ class GIWAXS(Film):
                 [3,1,0],
             ]
         super().initialize_fit(hkl_override, q_buffer)  
-        full_hkl = self.hex_hkl
-        full_hh_hk_kk_ll = self.hh_hk_kk_ll
-        full_mult = self.hex_multiplicity
 
-
-    def initialize_fit(self, sample_length_in_millimeter):
-        # self.sample_length_sq = sample_length_in_millimeter * 
-        self.lorentz_polarization_factor()
-
-        self.grain_size = 660
-        self.voigt = 0.5
-        self.strain = 0
-        self.goniometer_offset = 0
-
-        self.hkl = {
-            "full": np.array([
-                [1,0,0],
-                [1,0,1],
-                [2,0,0],
-                [1,1,1],
-                [0,0,2],
-                [2,0,1],
-                [1,0,2],
-                [2,1,0],
-                [1,1,2],
-                [2,1,1],
-                [2,0,2],
-                [3,0,1],
-                [2,1,2],
-                [2,2,0],
-                [3,1,0],
-            ]),
-            "oop": np.array([
-                [1,0,1],
-                [0,0,2],
-                [1,0,2],
-                [1,1,2],
-                [2,0,2]
-            ]),
-            "ip": np.array([
-                [1,0,0],
-                [2,0,0],
-                [2,0,1]
-                [2,1,0],
-                [2,1,1],
-                [3,0,1],
-                [2,2,0],
-                [3,1,0],
-            ]),
-            "dia": np.array([
-                [1,0,1],
-                [1,1,1],
-                [2,0,1],
-                [2,1,0],
-                [1,1,2],
-                [2,1,1],
-                [2,0,2],
-                [3,0,1],
-                [2,1,2]
-            ]),
-        }
-        self.multiplicity = {}
-        self.peak_heights = {}
-        self.hh_hk_kk = {}
-        self.l_sq = {}
-        for sector in self.hkl.keys():
-            self.multiplicity[sector] = np.empty(len(self.hkl[sector]))
-            for ii, (h, k, l) in enumerate(self.hkl[sector]):
-                if h + k == 0:
-                    self.multiplicity[sector][ii] = 1
-                elif h == k or h == 0:
-                    self.multiplicity[sector][ii] = 6
-                else:
-                    self.multiplicity[sector][ii] = 12
-            self.peak_heights[sector] = np.ones((len(self.hkl[sector]), 1)) * self.init_peak_height
-
-            self.hh_hk_kk[sector] = 4. / 3. * (self.hkl[sector][:, 0] * self.hkl[:, 0] + self.hkl[sector][:, 0] * self.hkl[sector][:, 1] + self.hkl[sector][:, 1] * self.hkl[sector][:, 1]).reshape((self.hkl.shape[0], 1))
-            self.l_sq[sector] = (self.hkl[sector][:, 2] * self.hkl[sector][:, 2]).reshape((self.hkl[sector].shape[0], 1))
-        print("Initialized GIWAXS with 4 sectors")
     
     def calc_widths(self, params, theta1):
         """Return FWHM^2 wrt q-space"""
@@ -1190,7 +1129,55 @@ class GIWAXS(Film):
             return self.fitting_function(self.hex, self.hex_peak_heights[sector], self.hex_params[sector],
                                          self.bkgd_heights[sector], self.bkgd_const[sector], self.bkgd_lin[sector])
 
+    ##########################################
+    def report_peaks(self):
+        for key in self.keys:
+            print(f"Sector: {k}")
+            q_xy_q_z = self.hh_hk_kk_ll[key] / (self.hex * self.hex)
+            q = 2 * np.pi * np.sqrt(np.sum(q_xy_q_z, axis=1))
+            azi = np.rad2deg(np.arctan2(*q_xy_q_z.T))
+            warnings = 0
+            for ii, (h, k, l) in enumerate(self.hex_hkl[key]):
+                if self.hex_peak_heights[key][ii] < 1e-10:
+                    warnings += 1
+                    print(f"Warning: ({h}{k}{l}) at q = {q[key][ii]:4f}: {self.hex_peak_heights[key][ii, 0]:.5e}")
+            if warnings:
+                print("Remove peaks considering forbidden conditions (h+k=3n & l is odd) near the same q of these.")
+                print("Use .remove_peak(h, k, l) to remove a peak. Do this above .fit_peak_heights() and re-run Notebook.")
+                print("")
+            for ii, (h, k, l) in enumerate(self.hex_hkl[key]):
+                print(f'({h}{k}{l}) at q = {q[key][ii]:5e} inv A: {self.hex_peak_heights[key][ii, 0]:.5e}')
+            print("")
+
+    def report_fit(self, fit):
+        dof = len(self.counts) - len(fit.x)
+        reduced_chi_sq = 2 * fit.cost / dof
+        if reduced_chi_sq > 1e5:
+            print(f"Reduced chi-squared: {reduced_chi_sq:.3e}")
+        else:
+            print(f"Reduced chi-squared: {reduced_chi_sq:.3f}")
+        print(f"message: {fit.message}")
+        print(f"Number of function evaluations: {fit.nfev}")
+        print(f"Number of Jacobian evaluations: {fit.njev}\n")
     
+    def chi_sq(self):
+        if self.giwaxs:
+            chi_sq = 0
+            for sector in self.q.keys():
+                counts_hat = self.current_fit(sector)
+                chi_sq += np.sum(((self.counts[sector] - counts_hat) / self.weights[sector]) ** 2)
+        else:
+            counts_hat = self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params, self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
+                                               self.mono, self.mono_peak_heights, self.mono_params)
+            chi_sq = np.sum(((self.counts - counts_hat) / self.weights) ** 2)
+        return chi_sq
+
+    def report_chi_sq(self):
+        chi_sq = self.chi_sq()
+        print(f"Chi-squared: {chi_sq:.3f}")
+        dof = len(self.counts) - self.free_param_num
+        print(f"Degrees of freedom: {dof}")
+        print(f"Reduced chi-squared: {chi_sq / dof:.3f}")
 
 
 """
