@@ -58,7 +58,12 @@ class TPP:
         self.wavelength = wavelength
         self.fourpi_lambda = 4. * np.pi / wavelength
         self.q = q
-        self.theta = np.arcsin(self.q / self.fourpi_lambda)  # half of scattering angle
+        if isinstance(self.q, dict):
+            self.theta = {}
+            for sector_key in self.q.keys():
+                self.theta[sector_key] = np.arcsin(self.q[sector_key] / self.fourpi_lambda)
+        else:
+            self.theta = np.arcsin(self.q / self.fourpi_lambda)  # half of scattering angle
         self.counts = counts
         self.name = name
         if weights is None:
@@ -74,7 +79,11 @@ class TPP:
 
         """LATTICE PARAMETERS"""
         self.hex = np.array([a, c])
-        if monoclinic:
+        if isinstance(monoclinic, np.ndarray):
+            self.mono = monoclinic
+        elif isinstance(monoclinic, list) or isinstance(monoclinic, tuple):
+            self.mono = np.array(monoclinic)
+        elif monoclinic:
             # a, b, c, beta
             self.mono = np.array([25.086, 25.913, 5.911, np.radians(95.97)])
         else:
@@ -97,7 +106,7 @@ class TPP:
 
         """OTHER FIT PARAMETERS"""
         self.hex_params = {
-            "w0": None,         # inv-angstrom
+            "w0": 3e-3,         # inv-angstrom
             "grain": 1000,       # angstrom
             "voigt": 0.5,       # between 0 and 1
             "strain": 0.,       # unitless
@@ -107,7 +116,7 @@ class TPP:
         }
         if monoclinic:
             self.mono_params = {
-                "w0": None,         # inv-angstrom
+                "w0": 3e-3,         # inv-angstrom
                 "grain": 1000,       # angstrom
                 "voigt": 0.5,       # between 0 and 1
                 "strain": 0.,       # unitless
@@ -120,35 +129,35 @@ class TPP:
 
         """BACKGROUND(S)"""
         if background == "new":
-            if self.giwaxs:
-                self.bkgd = {}
+            self.bkgd = NewBackground()
+            if isinstance(q, dict):
                 self.bkgd_heights = {}
                 self.bkgd_const = {}
-                self.bkgd_lin = {}
-                for sector in q.keys():
-                    self.bkgd[sector] = NewBackground()
+                self.bkgd_lin = 0
+                for sector in self.q.keys():
                     self.bkgd_heights[sector] = np.zeros(self.bkgd.centers.shape)
-                    self.bkgd_const[sector] = 1
-                    self.bkgd_lin[sector] = 0    
+                    self.bkgd_const[sector] = 1 
             else:
-                self.bkgd = NewBackground()
                 self.bkgd_heights = np.zeros(self.bkgd.centers.shape)
                 self.bkgd_const = 1
                 self.bkgd_lin = 0
         
         self.show_data()
         print("In next cell:")
-        print(" - Set background constant with .set_background_constant(background_constant)")
-        print(" - Set q_min and q_max to the desired range of q values to fit using `.set_range(q_min, q_max)`.")
+        if isinstance(q, dict):
+            print(" - Set background constant with .set_background_constant(list_of_background_constants)")
+            print(" - Set q_min and q_max to the desired range of q values for each sector to fit using `.set_range(q_min, q_max, sector_key)`.")
+            print(" - INITIALIZE FIT with .initialize_fit()")
+        else:
+            print(" - Set background constant with .set_background_constant(background_constant)")
+            print(" - Set q_min and q_max to the desired range of q values to fit using `.set_range(q_min, q_max)`.")
 
-    def initialize_fit(self, hkl_override=None, q_buffer=1.0, azi_buffer=0.):
+    def initialize_fit(self, hkl_override=None, q_buffer=1.0, azi_buffer=20.):
         self.lorentz = self.lorentz_polarization_factor()
         self.hex_multiplicity = []
         self.hex_hkl = []
         q_center = []
         if self.giwaxs:
-            q_xy_list = []
-            q_z_list = []
             azi_list = []
         if hkl_override is None:
             for h, k, l in product(range(5), repeat=3):
@@ -159,17 +168,21 @@ class TPP:
                         self.hex_hkl.append([h, k, l])
                         self.hex_multiplicity.append(self.multiplicity_check(h, k, l))
         else:
-            self.hkl = hkl_override
+            self.hex_hkl = hkl_override
             if self.giwaxs:
-                for h, k, l in self.hkl:
+                for h, k, l in self.hex_hkl:
                     q_xy_sq = TWO_PI * TWO_PI * 4.0 / 3.0 * (h * h + h * k + k * k) / (self.hex[0] * self.hex[0])
                     q_z_sq = TWO_PI * TWO_PI * l * l / (self.hex[1] * self.hex[1])
-                    q_center.append(np.sqrt(q_xy_sq + q_z_sq))
+                    q = np.sqrt(q_xy_sq + q_z_sq)
+                    q_center.append(q)
                     # q_xy_list.append(q_xy)
                     # q_z_list.append(q_z)
-                    azi_list.append(np.rad2deg(np.arctan2(np.sqrt(q_z_sq), np.sqrt(q_xy_sq))))
+                    self.hex_multiplicity.append(self.multiplicity_check(h, k, l))
+                    azi = np.rad2deg(np.arctan2(np.sqrt(q_z_sq), np.sqrt(q_xy_sq)))
+                    azi_list.append(azi)
+                    # print(f"({h}{k}{l}) -- q = {q:.4f} -- psi = {azi:.2f}")
             else:
-                for h, k, l in self.hkl:
+                for h, k, l in self.hex_hkl:
                     q = 2 * np.pi * np.sqrt(4.0 / 3.0 * (h * h + h * k + k * k) / (self.hex[0] * self.hex[0]) + l * l / (self.hex[1] * self.hex[1]))
                     q_center.append(q)
                     self.hex_multiplicity.append(self.multiplicity_check(h, k, l))
@@ -184,6 +197,7 @@ class TPP:
         self.hex_hkl = self.hex_hkl[sort_ind]
         self.hex_multiplicity = self.hex_multiplicity[sort_ind].reshape((len(self.hex_multiplicity), 1))
 
+        print(self.hex_hkl.shape)
         hh_hk_kk = 4. / 3. * (self.hex_hkl[:, 0] * self.hex_hkl[:, 0] + self.hex_hkl[:, 0] * self.hex_hkl[:, 1] + self.hex_hkl[:, 1] * self.hex_hkl[:, 1])
         l_sq = (self.hex_hkl[:, 2] * self.hex_hkl[:, 2])
         self.hh_hk_kk_ll = np.column_stack((hh_hk_kk, l_sq))
@@ -201,17 +215,19 @@ class TPP:
             for key in self.keys:
                 self.hex_hkl[key] = []
                 self.hex_multiplicity[key] = []      
+                self.hh_hk_kk_ll[key] = []
                 sector_start, sector_end = self.sectors[key]
                 sector_start -= azi_buffer
                 sector_end += azi_buffer
-                print(f"Sector: '{key}' with range ({sector_start}--{sector_end})\u00B0:")
+                print(f"Sector: '{key}' with range ({round(sector_start)}--{round(sector_end)})\u00B0:")
                 for ii, (h, k, l) in enumerate(hkl_full):
                     if azi_list[ii] < sector_end and azi_list[ii] > sector_start:
-                        print(f"({h}{k}{l}) -- q = {q_center[ii]:.4f} -- \u03C8 = {azi_list[ii]}\u00B0")
+                        print(f"({h}{k}{l}) -- q = {q_center[ii]:.4f} -- \u03C8 = {azi_list[ii]:2.2f}\u00B0")
                         self.hex_hkl[key].append(hkl_full[ii])
                         self.hex_multiplicity[key].append(mult_full[ii])
                         self.hh_hk_kk_ll[key].append(hhhkkkll[ii])
                 self.hex_peak_heights[key] = np.ones_like(self.hex_multiplicity[key]) * self.init_peak_height
+            return None
 
         print('Number of possible reflections within data: %d' % len(self.hex_hkl))
         for ii in range(len(self.hex_hkl)):
@@ -223,18 +239,32 @@ class TPP:
             q_center = []
             csc_beta = 1. / np.sin(self.mono[3])
             cos_beta = np.cos(self.mono[3])
-            # for h, k, l in ((2,0,0), (-1,2,0), (3,2,0), (4,0,0), (4,1,0), (0,1,1), (1,-1,1), (2,-4,0), (4,3,0), (1,-2,1), (2,-1,1), (4,1,1), (3,-4,1), (4,-3,1), (4,-1,1), (1,-4,2), (2,4,2)):
-            for h, k, l in ((2,0,0), (3,2,0), (4,0,0), (4,1,0), (0,1,1), (1,-1,1), (1,-2,1), (2,-1,1), (4,-3,1), (4,-1,1)):
-            # for h, k, l in product(range(-4, 5), repeat=3):
-            # for h, k, l in ((0,2,0), (2,0,0), (0,4,0), (4,0,0), (0,1,1), (2,-1,1), (2,-2,1)):
-            # for h, k, l in ((2,0,0), (1,2,0), (2,1,0), (4,0,0), (2,4,0), (0,4,1), (4,4,0), (3,4,1), (4,4,1)):
+            # # for h, k, l in ((2,0,0), (-1,2,0), (3,2,0), (4,0,0), (4,1,0), (0,1,1), (1,-1,1), (2,-4,0), (4,3,0), (1,-2,1), (2,-1,1), (4,1,1), (3,-4,1), (4,-3,1), (4,-1,1), (1,-4,2), (2,4,2)):
+            # for h, k, l in ((1,-1,0), (2,0,0), (3,2,0), (4,0,0), (4,1,0), (0,1,1), (1,-1,1), (1,-2,1), (2,-1,1), (4,-3,1), (4,-1,1)):
+            # # for h, k, l in product(range(-4, 5), repeat=3):
+            # # for h, k, l in ((0,2,0), (2,0,0), (0,4,0), (4,0,0), (0,1,1), (2,-1,1), (2,-2,1)):
+            # # for h, k, l in ((2,0,0), (1,2,0), (2,1,0), (4,0,0), (2,4,0), (0,4,1), (4,4,0), (3,4,1), (4,4,1)):
+            #     q = 2 * np.pi * np.sqrt(
+            #         (h * h / (self.mono[0] * self.mono[0])
+            #          + 2 * h * k * cos_beta / (self.mono[0] * self.mono[1])
+            #          + k * k / (self.mono[1] * self.mono[1])
+            #          ) * csc_beta * csc_beta + l * l / (self.mono[2] * self.mono[2])
+            #     )
+            #     if self.q.min() <= q <= self.q.max():
+            #         q_center.append(q)
+            #         self.mono_hkl.append([h, k, l])
+            #         if h + k == 0 or l == 0:
+            #             self.mono_multiplicity.append([2])
+            #         else:
+            #             self.mono_multiplicity.append([4])
+            for h, k, l in product(range(-4, 5)[::-1], repeat=3):
                 q = 2 * np.pi * np.sqrt(
                     (h * h / (self.mono[0] * self.mono[0])
                      + 2 * h * k * cos_beta / (self.mono[0] * self.mono[1])
                      + k * k / (self.mono[1] * self.mono[1])
                      ) * csc_beta * csc_beta + l * l / (self.mono[2] * self.mono[2])
                 )
-                if self.q.min() <= q <= self.q.max():
+                if (self.q.min() <= q <= self.q.max()) and q not in q_center:
                     q_center.append(q)
                     self.mono_hkl.append([h, k, l])
                     if h + k == 0 or l == 0:
@@ -250,8 +280,8 @@ class TPP:
             q_center = q_center[sort_ind]
             self.mono_hkl = self.mono_hkl[sort_ind]
             self.mono_multiplicity = self.mono_multiplicity[sort_ind].reshape((len(self.mono_multiplicity), 1))
-            # for ii, (h,k,l) in enumerate(self.mono_hkl):
-            #     print(f"({h}{k}{l}): q = {q_center[ii]}")
+            for ii, (h,k,l) in enumerate(self.mono_hkl):
+                print(f"({h}{k}{l}): q = {q_center[ii]}")
 
             self.mono_hh = (self.mono_hkl[:, 0] * self.mono_hkl[:, 0]).reshape((len(self.mono_hkl), 1))
             self.mono_hk = (self.mono_hkl[:, 0] * self.mono_hkl[:, 1]).reshape((len(self.mono_hkl), 1))
@@ -277,14 +307,23 @@ class TPP:
         # convert_to_q = 0.5 * self.fourpi_lambda * cos_theta
         return fwhm_sq  # * convert_to_q * convert_to_q
     
-    def current_fit(self, sector=None):
+    def current_fit(self, sector=None, mixture=False):
         if sector is None:
-            return self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params,
-                                         self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
-                                         self.mono, self.mono_peak_heights, self.mono_params)
+            if mixture:
+                hexagonal = self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params,
+                                                  self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
+                                                  self.mono, np.zeros_like(self.mono_peak_heights), self.mono_params)
+                monoclinic = self.fitting_function(self.hex, np.zeros_like(self.hex_peak_heights), self.hex_params,
+                                                  self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
+                                                  self.mono, self.mono_peak_heights, self.mono_params)
+                return hexagonal, monoclinic
+            else:
+                return self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params,
+                                             self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
+                                             self.mono, self.mono_peak_heights, self.mono_params)
         else:
-            return self.fitting_function(self.hex, self.hex_peak_heights[sector], self.hex_params[sector],
-                                         self.bkgd_heights[sector], self.bkgd_const[sector], self.bkgd_lin[sector])
+            return self.fitting_function(self.hex, self.hex_peak_heights[sector], self.hex_params,
+                                         self.bkgd_heights[sector], self.bkgd_const[sector], self.bkgd_lin, sector)
 
     def fitting_function(self, hex, hex_peak_heights, hex_params, bkgd_heights, bkgd_const, bkgd_lin, mono=None, mono_peak_heights=None, mono_params=None):
         inv_d = np.sqrt(np.sum(self.hh_hk_kk_ll / (hex * hex), axis=1, keepdims=True))       # inverse d from miller indices (column vector)
@@ -346,30 +385,51 @@ class TPP:
         print("ERROR: no LP factor")
         return None
 
-    def calc_background(self, bkgd_heights):
+    def calc_background(self, bkgd_heights, sector=None):
         """Calculate the background pre-lorentz factor"""
-        arg = (self.q - self.bkgd.centers) / self.bkgd.widths
+        if sector is None:
+            q = self.q
+        else:
+            q = self.q[sector]
+        arg = (q - self.bkgd.centers) / self.bkgd.widths
         return np.sum(bkgd_heights * np.exp(-0.5 * arg * arg), axis=0)
 
     def show_data(self, fig_size=None):
-        if self.giwaxs:
-            num_sectors = len(self.keys)
-            if fig_size is None:
-                fig_size = (10, 2 * num_sectors)
-            fig, axes = plt.subplots(2, round(0.5 * num_sectors))
-            for ii, sector in enumerate(self.q.keys()):
-                row = int(0.5 * ii)
-                col = ii % 2
-                axes[row, col].scatter(
-                    self.q[sector], self.counts[sector],
-                    s=5,  # marker size
-                    marker="o",  # marker shape
-                    edgecolors="black",  # marker edge color
-                    lw=.75,  # marker edge width
-                    alpha=1,  # transparency
-                    facecolor='w'  # marker face color
-                )
-                axes[row, col].set_title(self.name + " " + sector, fontsize=12)
+        if isinstance(self.q, dict):
+            if len(self.q) > 1:
+                num_sectors = len(self.q.keys())
+                if fig_size is None:
+                    fig_size = (10, 2 * num_sectors)
+                fig, axes = plt.subplots(2, round(0.5 * num_sectors))
+                for ii, sector in enumerate(self.q.keys()):
+                    row = int(0.5 * ii)
+                    col = ii % 2
+                    axes[row, col].scatter(
+                        self.q[sector], self.counts[sector],
+                        s=5,  # marker size
+                        marker="o",  # marker shape
+                        edgecolors="black",  # marker edge color
+                        lw=.75,  # marker edge width
+                        alpha=1,  # transparency
+                        facecolor='w'  # marker face color
+                    )
+                    axes[row, col].set_title(self.name + " " + sector, fontsize=12)
+            else:
+                if fig_size is None:
+                    fig_size = (5, 4)
+                fig, ax = plt.subplots(1, 1, figsize=fig_size)
+                for ii, sector in enumerate(self.q.keys()):
+                    ax.scatter(
+                        self.q[sector], self.counts[sector],
+                        s=5,  # marker size
+                        marker="o",  # marker shape
+                        edgecolors="black",  # marker edge color
+                        lw=.75,  # marker edge width
+                        alpha=1,  # transparency
+                        facecolor='w'  # marker face color
+                    )
+                    ax.set_title(self.name + " " + sector, fontsize=12)
+                axes = ((ax,),)
         else:
             if fig_size is None:
                 fig_size = (5, 4)
@@ -384,32 +444,46 @@ class TPP:
                 facecolor='w'  # marker face color
             )
             ax.set_title(self.name, fontsize=12)
-            axes = [ax]
-        for ax in axes:
-            ax.grid(linestyle='dotted')
-            ax.set_xlabel(self.xlabel, fontsize=12)
-            ax.set_ylabel(self.ylabel, fontsize=12)
-            ax.set_yscale("log")
-            ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
-            ax.tick_params(axis="both", which="both", direction="in", top=True, right=True)
+            axes = ((ax,),)
+        for ax_row in axes:
+            for ax in ax_row:
+                ax.grid(linestyle='dotted')
+                ax.set_xlabel(self.xlabel, fontsize=12)
+                ax.set_ylabel(self.ylabel, fontsize=12)
+                ax.set_yscale("log")
+                ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+                ax.tick_params(axis="both", which="both", direction="in", top=True, right=True)
         fig.tight_layout()
         if len(axes) == 1:
             axes = ax
         return fig, axes
     
-    def show_fit(self, fig_size=None):
+    def show_fit(self, fig_size=None, mixture=False):
         if self.giwaxs:
             fig, axes = self.show_data(fig_size)
-            for ii, sector in enumerate(self.keys):
-                fit = self.current_fit(sector)
-                row = int(0.5 * ii)
-                col = ii % 2
-                axes[row, col].plot(self.q, fit, label="Fit", color="red", lw="0.5")
+            if len(self.q) > 1:
+                for ii, sector in enumerate(self.keys):
+                    fit = self.current_fit(sector)
+                    row = int(0.5 * ii)
+                    col = ii % 2
+                    axes[row, col].plot(self.q[sector], fit, label="Fit", color="red", lw="0.5")
+                return fig, axes
+            else:
+                for ii, sector in enumerate(self.keys):
+                    fit = self.current_fit(sector)
+                    axes.plot(self.q[sector], fit, label="Fit", color="red", lw="0.5")
+                return fig, axes
+        elif mixture:
+            hexagonal, monoclinic = self.current_fit(mixture=mixture)
+            fig, ax = self.show_data(fig_size=fig_size)
+            ax.plot(self.q, hexagonal, label="Hexaganol", color="red", lw="0.5")
+            ax.plot(self.q, monoclinic, label="Monoclinic", color="g", lw="0.5")
+            return fig, ax
         else:
             fit = self.current_fit()
             fig, ax = self.show_data(fig_size=fig_size)
             ax.plot(self.q, fit, label="Fit", color="red", lw="0.5")
-        return fig, ax
+            return fig, ax
     
     def save(self, name, title=None, dpi=600, fig_size=None):
         fig, ax = self.show_fit(fig_size=fig_size)
@@ -423,15 +497,15 @@ class TPP:
             self.weights = self.weights[(self.q > q_min) & (self.q < q_max)]
             self.theta = self.theta[(self.q > q_min) & (self.q < q_max)]
             self.q = self.q[(self.q > q_min) & (self.q < q_max)]
-            self.initialize_fit(q_buffer)
+            self.initialize_fit(hkl_override=None, q_buffer=q_buffer)
+            return self.show_fit()
         else:
-            self.counts[sector] = self.counts[sector][(self.q > q_min) & (self.q < q_max)]
-            self.weights[sector] = self.weights[sector][(self.q > q_min) & (self.q < q_max)]
-            self.theta = self.theta[sector][(self.q > q_min) & (self.q < q_max)]
-            self.q[sector] = self.q[sector][(self.q > q_min) & (self.q < q_max)]
+            self.counts[sector] = self.counts[sector][(self.q[sector] > q_min) & (self.q[sector] < q_max)]
+            self.weights[sector] = self.weights[sector][(self.q[sector] > q_min) & (self.q[sector] < q_max)]
+            self.theta[sector] = self.theta[sector][(self.q[sector] > q_min) & (self.q[sector] < q_max)]
+            self.q[sector] = self.q[sector][(self.q[sector] > q_min) & (self.q[sector] < q_max)]
             # self.initialize_fit(q_buffer)
-            print("INITIALIZE FIT with .initialize_fit()")
-        return self.show_fit()
+        
     
     @staticmethod
     def multiplicity_check(h, k, l):
@@ -502,7 +576,7 @@ class TPP:
         print(f"Degrees of freedom: {dof}")
         print(f"Reduced chi-squared: {chi_sq / dof:.3f}")
         
-    def remove_peak(self, h, k, l, mono=False):
+    def remove_peak(self, h, k, l, mono=False, sector=None):
         if mono:
             ind = np.where((self.mono_hkl[:, 0] == h) & (self.mono_hkl[:, 1] == k) & (self.mono_hkl[:, 2] == l))[0]
             if len(ind) == 1:
@@ -515,7 +589,7 @@ class TPP:
                 self.mono_ll = np.delete(self.mono_ll, ind, axis=0)
             else:
                 print("({},{},{}) Hexagonal peak already is not present.".format(h, k, l))
-        else:
+        elif sector is None:
             ind = np.where((self.hex_hkl[:, 0] == h) & (self.hex_hkl[:, 1] == k) & (self.hex_hkl[:, 2] == l))[0]
             if len(ind) == 1:
                 self.hex_hkl = np.delete(self.hex_hkl, ind, axis=0)
@@ -524,21 +598,44 @@ class TPP:
                 self.hh_hk_kk_ll = np.delete(self.hh_hk_kk_ll, ind, axis=0)
             else:
                 print("({},{},{}) Hexagonal peak already is not present.".format(h, k, l))
+        else:
+            ind = np.where((self.hex_hkl[sector][:, 0] == h) & (self.hex_hkl[sector][:, 1] == k) & (self.hex_hkl[sector][:, 2] == l))[0]
+            if len(ind) == 1:
+                self.hex_hkl[sector] = np.delete(self.hex_hkl[sector], ind, axis=0)
+                self.hex_multiplicity[sector] = np.delete(self.hex_multiplicity[sector], ind, axis=0)
+                self.hex_peak_heights[sector] = np.delete(self.hex_peak_heights[sector], ind, axis=0)
+                self.hh_hk_kk_ll[sector] = np.delete(self.hh_hk_kk_ll[sector], ind, axis=0)
+            else:
+                print("({},{},{}) Hexagonal peak already is not present.".format(h, k, l))
 
-    def add_peak(self, h, k, l, mono=False):
+
+    def add_peak(self, h, k, l, mono=False, sector=None):
         if mono:
             self.mono_hkl = np.vstack((self.mono_hkl, [h, k, l]))
             if h + k == 0 or l == 0:
                 self.mono_multiplicity = np.vstack((self.mono_multiplicity, 2))
             else:
                 self.mono_multiplicity = np.vstack((self.mono_multiplicity, 4))
+            self.mono_hh = np.vstack((self.mono_hh, h * h))
+            self.mono_hk = np.vstack((self.mono_hk, h * k))
+            self.mono_kk = np.vstack((self.mono_kk, k * k))
+            self.mono_ll = np.vstack((self.mono_ll, l * l))
+            self.mono_peak_heights = np.vstack((self.mono_peak_heights, self.init_peak_height))
         else:
-            self.hex_hkl = np.vstack((self.hex_hkl, [h, k, l]))
-            self.hex_peak_heights = np.vstack((self.hex_peak_heights, self.init_peak_height))
-            self.hex_multiplicity = np.vstack((self.hex_multiplicity, self.multiplicity_check(h, k, l)))
-            hh_hk_kk = 4. / 3. * (h * h + h * k + k * k)
-            l_sq =  l * l
-            self.hh_hk_kk_ll = np.vstack((self.hh_hk_kk_ll, np.array([hh_hk_kk, l_sq])))
+            if sector is None:
+                self.hex_hkl = np.vstack((self.hex_hkl, [h, k, l]))
+                self.hex_peak_heights = np.vstack((self.hex_peak_heights, self.init_peak_height))
+                self.hex_multiplicity = np.vstack((self.hex_multiplicity, self.multiplicity_check(h, k, l)))
+                hh_hk_kk = 4. / 3. * (h * h + h * k + k * k)
+                l_sq =  l * l
+                self.hh_hk_kk_ll = np.vstack((self.hh_hk_kk_ll, np.array([hh_hk_kk, l_sq])))
+            else:
+                self.hex_hkl[sector] = np.vstack((self.hex_hkl[sector], [h, k, l]))
+                self.hex_peak_heights[sector] = np.vstack((self.hex_peak_heights[sector], self.init_peak_height))
+                self.hex_multiplicity[sector] = np.vstack((self.hex_multiplicity[sector], self.multiplicity_check(h, k, l)))
+                hh_hk_kk = 4. / 3. * (h * h + h * k + k * k)
+                l_sq =  l * l
+                self.hh_hk_kk_ll[sector] = np.vstack((self.hh_hk_kk_ll[sector], np.array([hh_hk_kk, l_sq])))
     
     def clear_forbidden_peaks(self):
         for h, k, l in self.hex_hkl:
@@ -556,31 +653,34 @@ class TPP:
     #     for hkl in to_clear:
     #         self.remove_peak(*hkl, mono=True)
 
-    def set_background_constant(self, background_constant, sector=None, background_linear=0):
-        if sector is None:
+    def set_background_constant(self, background_constant, background_linear=0):
+        if isinstance(background_constant, list) or isinstance(background_constant, tuple):
+            for ii, sector_key in enumerate(self.keys):
+                self.bkgd_const[sector_key] = background_constant[ii]
+            self.bkgd_lin = background_linear
+            print("Keep adjusting and re-running this cell until the fit looks good.\n")
+            print("In next cell:")
+            print(f" - Set background with `.set_background([len {len(self.bkgd_heights)} list of [len {len(self.bkgd_heights['full'])} lists]])`.\n")
+        else:
             self.bkgd_const = background_constant
             self.bkgd_lin = background_linear
             print("Keep adjusting and re-running this cell until the fit looks good.\n")
             print("In next cell:")
             print(f" - Set background with `.set_background([len {len(self.bkgd_heights)} array])`.\n")
-        else:
-            sectors = ["full", "oop", "ip", "dia"]
-            self.bkgd_const[sector] = background_constant
-            self.bkgd_lin[sector] = background_linear
-            print("Keep adjusting and re-running this cell until the fit looks good.\n")
-            print("In next cell:")
-            for sec in sectors:
-                print(f" - Set {sec} background with `.set_background([len {len(self.bkgd_heights)} array], '{sec}')`.\n")
     
-    def set_background(self, background_heights, sector=None):
-        if sector is None:
-            self.bkgd_heights = np.array(background_heights).reshape((len(background_heights), 1))
+    def set_background(self, background_heights):
+        if self.giwaxs:
+            for ii, sector in enumerate(self.keys):
+                self.bkgd_heights[sector] = np.array(background_heights[ii]).reshape((len(background_heights[ii]), 1))
         else:
-            self.bkgd_heights[sector] = np.array(background_heights).reshape((len(background_heights), 1))
+            self.bkgd_heights = np.array(background_heights).reshape((len(background_heights), 1))
         print("Keep adjusting and re-running this cell until the fit looks good.")
         print(f"The peak centers are at: {self.bkgd.centers.flatten()}\n")
         print("In next cell:")
-        print(" - Fit peak heights with .fit_peak_heights().")
+        if self.giwaxs:
+            print(" - Fit peak heights with .fit_lattice_parameters().")
+        else:
+            print(" - Fit peak heights with .fit_peak_heights().")
         return self.show_fit()
     
     def fit_peak_heights(self):
@@ -733,7 +833,7 @@ class TPP:
             print(f"a = ({fit.x[2]:.4f} \u00B1 {std[2]:.4f}) Angstroms")
             print(f"b = ({fit.x[3]:.4f} \u00B1 {std[3]:.4f}) Angstroms")
             print(f"c = ({fit.x[4]:.4f} \u00B1 {std[4]:.4f}) Angstroms")
-            print(f"\u03B2 = ({np.rad2deg(fit.x[5]):.4f} \u00B1 {np.rad2deg(std[5]):.4f}) degrees")
+            print(f"\u03B2 = ({np.rad2deg(fit.x[5]):.4f} \u00B1 {np.rad2deg(std[5]):.4f})\u00B0")
             for ii, key in enumerate(hex_keys):
                 print(f"Hexagonal {key} = ({fit.x[6 + ii]:.4f} \u00B1 {std[6 + ii]:.4f})")
             if keys is not None:
@@ -753,7 +853,7 @@ class TPP:
             print(f"a = {fit.x[2]:.4f} Angstroms")
             print(f"b = {fit.x[3]:.4f} Angstroms")
             print(f"c = {fit.x[4]:.4f} Angstroms")
-            print(f"\u03B2 = {np.rad2deg(fit.x[5]):.4f} degrees")
+            print(f"\u03B2 = {np.rad2deg(fit.x[5]):.4f}\u00B0")
             
             for ii, key in enumerate(hex_keys):
                 print(f"Hexagonal {key} = {fit.x[6 + ii]:.4f}")
@@ -890,7 +990,7 @@ class TPP:
             print(f"a = ({fit.x[2]:.4f} \u00B1 {std[2]:.4f}) Angstroms")
             print(f"b = ({fit.x[3]:.4f} \u00B1 {std[3]:.4f}) Angstroms")
             print(f"c = ({fit.x[4]:.4f} \u00B1 {std[4]:.4f}) Angstroms")
-            print(f"\u03B2 = ({np.rad2deg(fit.x[5]):.4f} \u00B1 {np.rad2deg(std[5]):.4f}) degrees")
+            print(f"\u03B2 = ({np.rad2deg(fit.x[5]):.4f} \u00B1 {np.rad2deg(std[5]):.4f})\u00B0")
             for ii, key in enumerate(hex_keys):
                 print(f"Hexagonal {key} = ({fit.x[6 + ii]:.4f} \u00B1 {std[6 + ii]:.4f})")
             if keys is not None:
@@ -927,6 +1027,48 @@ class TPP:
         self.bkgd_const = fit.x[-1]
         self.report_peaks()
         return self.show_fit()
+    
+    def fit_lattice_parameters(self):
+        print("In next cell:")
+        print(" - Fit peak widths with .fit_peak_widths().\n")
+        self.fit_free_params()
+    
+    def fit_peak_widths(self):
+        print("In next cell:")
+        print(" - Fit peak shapes with `.fit_strain()`.\n")
+        return self.fit_free_params(["grain"])
+
+    def fit_strain(self):
+        self.hex_strain_lock = False
+        print("In next cell:")
+        if self.goni_lock:
+            print(" - Fit voigt parameter with `.fit_voigt()`.\n")
+        else:
+            print(" - Fit goniometer offset with `.fit_goni()`\n")
+        return self.fit_free_params(["grain", "strain"])
+    
+    def fit_voigt(self):
+        print("In next cell:")
+        if self.mono is None:
+            print(" - finish fit with `.fit_hexagonal()`.\n")
+        else:
+            print(" - add monoclinic peaks with `.add_monoclinic()`.\n")
+        keys = ["grain", "voigt"]
+        if not self.hex_strain_lock:
+            keys.append("strain")
+        if not self.goni_lock:
+            keys.append("goni")
+        return self.fit_free_params(keys)
+    
+    def fit_hexagonal(self):
+        print("In next cell:")
+        print(" - Save with  `.save(file_name, title=None, dpi=600)` or `fig, ax = self.show_fit(fig_size)`.")
+        keys = ["grain", "voigt"]
+        if not self.hex_strain_lock:
+            keys.append("strain")
+        if not self.goni_lock:
+            keys.append("goni")
+        return self.fit_background(keys)
 
 
 class Powder(TPP):
@@ -953,25 +1095,6 @@ class Powder(TPP):
         cos2theta = np.cos(2 * self.theta)
         return (1 + cos2theta * cos2theta) / (sintheta * sintheta * np.cos(self.theta))
     
-    def fit_lattice_parameters(self):
-        print("In next cell:")
-        print(" - Fit peak widths with .fit_peak_widths().\n")
-        self.fit_free_params()
-    
-    def fit_peak_widths(self):
-        print("In next cell:")
-        print(" - Fit peak shapes with `.fit_strain()`.\n")
-        return self.fit_free_params(keys=["grain"])
-
-    def fit_strain(self):
-        self.hex_strain_lock = False
-        print("In next cell:")
-        if self.goni_lock:
-            print(" - Fit voigt parameter with `.fit_voigt()`.\n")
-        else:
-            print(" - Fit goniometer offset with `.fit_goni()`\n")
-        return self.fit_free_params(keys=["grain", "strain"])
-    
     def fit_goni(self):
         self.goni_lock = False
         print("In next cell:")
@@ -980,29 +1103,6 @@ class Powder(TPP):
         if not self.hex_strain_lock:
             keys.append("strain")
         return self.fit_free_params(keys)
-
-    def fit_voigt(self):
-        print("In next cell:")
-        if self.mono is None:
-            print(" - OR finish fit with `.fit_hexagonal()`.\n")
-        else:
-            print(" - add monoclinic peaks with `.add_monoclinic()`.\n")
-        keys = ["grain", "voigt"]
-        if not self.hex_strain_lock:
-            keys.append("strain")
-        if not self.goni_lock:
-            keys.append("goni")
-        return self.fit_free_params(keys)
-    
-    def fit_hexagonal(self):
-        print("In next cell:")
-        print(" - Save with  `.save(file_name, title=None, dpi=600)` or `fig, ax = self.show_fit(fig_size)`.")
-        keys = ["grain", "voigt"]
-        if not self.hex_strain_lock:
-            keys.append("strain")
-        if not self.goni_lock:
-            keys.append("goni")
-        return self.fit_background(keys)
     
     def fit_lattice_parameters_monoclinic(self):
         print("In next cell:")
@@ -1040,6 +1140,93 @@ class Powder(TPP):
         return self.fit_background_monoclinic(keys)
     
 
+class Monoclinic(Powder):
+
+    init_peak_height = 5e-3
+
+    def __init__(self, q: np.ndarray, counts: np.ndarray, lattice_parameters=None,
+                 weights:np.ndarray=None, det_dist:float=150.0, sample_size:float=0.,
+                 wavelength:float=1.54185, name: str="", background:str="new"):
+        if lattice_parameters is None:
+            lattice_parameters = True
+        super().__init__(12, 10, q, counts, monoclinic=lattice_parameters, weights=weights, det_dist=det_dist,
+                         sample_size=sample_size, wavelength=wavelength, name=name, background=background)
+        self.mono_params["goni"] = 0.
+
+    def initialize_fit(self, hkl_override=None, q_buffer=1.0, azi_buffer=20.):
+        super().initialize_fit(hkl_override=None, q_buffer=1.0, azi_buffer=20.)
+        self.mono_peak_heights = np.ones_like(self.mono_peak_heights) * self.init_peak_height
+        self.hex_peak_heights = np.zeros_like(self.hex_peak_heights)
+
+    def fit_free_params(self, keys=None):
+        free_parameters = list(self.mono)
+        if keys is not None:
+            for key in keys:
+                free_parameters.append(self.mono_params[key])
+        N = len(free_parameters)
+        free_parameters.extend(list(self.mono_peak_heights.flatten()))
+        self.free_param_num = len(free_parameters)
+        def residuals(params):
+            mono_lattice = np.array(params[:4])
+            mono_params = self.mono_params.copy()
+            for ii in range(N-4):
+                mono_params[keys[ii]] = params[4 + ii]
+            peak_heights = np.array(params[N:]).reshape((len(self.mono_peak_heights), 1))
+            counts_hat = self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params,
+                                               self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
+                                               mono=mono_lattice, mono_peak_heights=peak_heights, mono_params=mono_params)
+            return (counts_hat - self.counts) / self.weights
+        
+        fit = least_squares(residuals, free_parameters, method="lm")
+
+        try:
+            std = np.sqrt(np.diagonal(np.linalg.inv(fit.jac.T @ fit.jac) * (fit.fun.T @ fit.fun / (fit.fun.size - fit.x.size))))
+            for ii, lp in enumerate(("a", "b", "c")):
+                print(f"{lp} = ({fit.x[ii]:.4f} \u00B1 {std[ii]:.4f}) Angstroms")
+            print(f"\u03B2 = ({np.rad2deg(fit.x[3]):.4f} \u00B1 {np.rad2deg(std[3]):.4f})\u00B0")
+            if keys is not None:
+                for ii, key in enumerate(keys):
+                    print(f"{key} = ({fit.x[4 + ii]:.4f} \u00B1 {std[4 + ii]:.4f})")
+                    if key == "strain":
+                        if fit.x[4 + ii] < 0.5 * std[4 + ii]:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        except:
+            print("failed to calculate error")
+            for ii, lp in ("a", "b", "c"):
+                print(f"{lp} = {fit.x[ii]:.4f} Angstroms")
+            print(f"\u03B2 = {np.rad2deg(fit.x[3]):.4f}\u00B0")
+            if keys is not None:
+                for ii, key in enumerate(keys):
+                    print(f"{key} = {fit.x[4 + ii]:.4f}")
+                    if key == "strain":
+                        if fit.x[4 + ii] < 1e-10:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        self.report_fit(fit)
+        self.mono = np.array(fit.x[:4])
+        if keys is not None:
+            for ii, key in enumerate(keys):
+                self.mono_params[key] = fit.x[4 + ii]
+        self.mono_peak_heights = fit.x[N:].reshape((len(self.mono_peak_heights), 1))
+        self.report_peaks()
+        return self.show_fit()
+    
+
+class pXRD(Powder):
+    init_peak_height = 1
+
+    def __init__(self, a: float, c: float, q: np.ndarray, counts: np.ndarray, monoclinic=False,
+                 weights:np.ndarray=None, det_dist:float=150.0, sample_size:float=0.,
+                 wavelength:float=1.54185, name: str="", background:str="new"):
+        super().__init__(a, c, q, counts, monoclinic, weights, det_dist,
+                         sample_size, wavelength, name, background)
+        self.hex_params["w0"] = 0.003
+        self.mono_params["w0"] = 0.003
+
+
 class WAXS(Powder):
     init_peak_height = 5e-3
 
@@ -1069,25 +1256,41 @@ class Film(TPP):
             multiplicity = 12
         return multiplicity
 
-    def lorentz_polarization_factor(self):
+    def lorentz_polarization_factor(self, sector=None):
         """calculate the lorentz polarization factor"""
-        cos2theta = np.cos(2 * self.theta)
-        return (1 + cos2theta * cos2theta) / (np.sin(2. * self.theta))
-
+        if sector is None:
+            twotheta = 2. * self.theta
+        else:
+            twotheta = 2. * self.theta[sector]
+        cos2theta = np.cos(twotheta)
+        sin2theta = np.sin(twotheta)
+        return (1 + cos2theta * cos2theta) / sin2theta
 
 class GIWAXS(Film):
-    ylabel = "Intensity (counts / (min $cdot$ apparent pixel))"
+    ylabel = "Intensity"
+    xlabel = r"$q\ (\mathregular{\AA}^{-1})$"
+    init_peak_height = 5e-4
 
     def __init__(self, a: float, c: float, q: dict, counts: dict,
                  weights: dict, sectors: dict, det_dist:float=150.0, sample_size:float=5.,
                  wavelength:float=1.54185, name: str="", background:str="new"):
         super().__init__(a, c, q, counts, False, weights, det_dist, sample_size, wavelength, name, background)
         self.giwaxs = True
+        self.hex_params["w0"] = 0.
+        self.hex_params["voigt"] = 0
+        self.goni_lock = True
         self.keys = q.keys()
-        self.sectors = sectors
+        self.sectors = dict(zip(self.keys, sectors))
         self.two_pi_over_wavelength = TWO_PI / self.wavelength
+    
+    def lorentz_polarization_factor(self):
+        """calculate the lorentz polarization factor"""
+        lorentz = {}
+        for key in self.keys:
+            lorentz[key] = super().lorentz_polarization_factor(key)
+        return lorentz
 
-    def initialize_fit(self, hkl_override=None, q_buffer=1.):
+    def initialize_fit(self, azi_buffer=20, hkl_override=None, q_buffer=1.):
         if hkl_override is None:
             hkl_override = [
                 [1,0,0],
@@ -1106,7 +1309,8 @@ class GIWAXS(Film):
                 [2,2,0],
                 [3,1,0],
             ]
-        super().initialize_fit(hkl_override, q_buffer)  
+        super().initialize_fit(hkl_override, q_buffer, azi_buffer)
+        self.show_fit()
 
     
     def calc_widths(self, params, theta1):
@@ -1117,22 +1321,34 @@ class GIWAXS(Film):
         width_strain = self.two_pi_over_wavelength * params["strain"] * np.sin(theta1)
         width_size = self.two_pi_over_wavelength * params["size"] / params["dist"] * np.tan(2. * theta1) * np.cos(theta1)
         fwhm_sq = instrumental * instrumental + width_grain * width_grain + width_strain * width_strain + width_size * width_size
-        # convert_to_q = 0.5 * self.fourpi_lambda * cos_theta
-        return fwhm_sq  # * convert_to_q * convert_to_q
+        return fwhm_sq
     
-    def current_fit(self, sector=None):
-        if sector is None:
-            return self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params,
-                                         self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
-                                         self.mono, self.mono_peak_heights, self.mono_params)
-        else:
-            return self.fitting_function(self.hex, self.hex_peak_heights[sector], self.hex_params[sector],
-                                         self.bkgd_heights[sector], self.bkgd_const[sector], self.bkgd_lin[sector])
+    def fitting_function(self, hex, hex_peak_heights, hex_params, bkgd_heights, bkgd_const, bkgd_lin, sector):
+        inv_d = np.sqrt(np.sum(self.hh_hk_kk_ll[sector] / (hex * hex), axis=1, keepdims=True))       # inverse d from miller indices (column vector)
+        theta1 = np.arcsin(0.5 * self.wavelength * inv_d)
+        fwhm_sq = self.calc_widths(hex_params, theta1)
+        sigma_sq = fwhm_sq * FWHM_SQ_TO_HALF_SIGMA_SQ
+        width_gauss = 2 * sigma_sq
+        width_lortz = 0.25 * fwhm_sq
+        # hwhm = 0.5 * np.sqrt(fwhm_sq)
+        
+        q_c = TWO_PI * inv_d                                     # find q-centers from inv_d
+        q_shift = self.q[sector] - q_c                                  # center q from the q-centers
+        q_shift_sq = q_shift * q_shift
 
-    ##########################################
+        hex_peaks = np.sum(
+            # self.hex_multiplicity * hex_peak_heights * ((1 - hex_params["voigt"]) * np.exp(-0.5 * q_shift_sq / sigma_sq) / np.sqrt(2. * np.pi * sigma_sq) + hex_params["voigt"] * hwhm / (np.pi * (q_shift_sq / 0.25 * fwhm_sq + 1))),
+            self.hex_multiplicity[sector] * hex_peak_heights * ((1 - hex_params["voigt"]) * np.exp(-q_shift_sq / width_gauss) + hex_params["voigt"] * INV_ROOT_PI_LN2 / (q_shift_sq / width_lortz + 1)),
+            # self.hex_multiplicity * hex_peak_heights * ((1 - hex_params["voigt"]) * np.exp(-0.5 * q_shift_sq / fwhm_sq) + hex_params["voigt"] * fwhm_sq / (q_shift_sq + fwhm_sq)),
+            # self.hex_multiplicity * hex_peak_heights * ((1 - hex_params["voigt"]) * np.exp(-0.5 * q_shift_sq / sigma_sq) + hex_params["voigt"] * fwhm_sq / (q_shift_sq + fwhm_sq)),
+            axis=0
+        )
+
+        return self.lorentz[sector] * (hex_peaks + self.calc_background(bkgd_heights, sector)) + bkgd_const + bkgd_lin * self.q[sector]
+
     def report_peaks(self):
         for key in self.keys:
-            print(f"Sector: {k}")
+            print(f"Sector: {key}")
             q_xy_q_z = self.hh_hk_kk_ll[key] / (self.hex * self.hex)
             q = 2 * np.pi * np.sqrt(np.sum(q_xy_q_z, axis=1))
             azi = np.rad2deg(np.arctan2(*q_xy_q_z.T))
@@ -1140,44 +1356,156 @@ class GIWAXS(Film):
             for ii, (h, k, l) in enumerate(self.hex_hkl[key]):
                 if self.hex_peak_heights[key][ii] < 1e-10:
                     warnings += 1
-                    print(f"Warning: ({h}{k}{l}) at q = {q[key][ii]:4f}: {self.hex_peak_heights[key][ii, 0]:.5e}")
+                    print(f"Warning: ({h}{k}{l}) at q = {q[ii]:4f}: {self.hex_peak_heights[key][ii, 0]:.5e}")
             if warnings:
                 print("Remove peaks considering forbidden conditions (h+k=3n & l is odd) near the same q of these.")
                 print("Use .remove_peak(h, k, l) to remove a peak. Do this above .fit_peak_heights() and re-run Notebook.")
                 print("")
             for ii, (h, k, l) in enumerate(self.hex_hkl[key]):
-                print(f'({h}{k}{l}) at q = {q[key][ii]:5e} inv A: {self.hex_peak_heights[key][ii, 0]:.5e}')
+                print(f'({h}{k}{l}) at q = {q[ii]:.4f} inv A -- {azi[ii]:.1f}\u00B0 -- {self.hex_peak_heights[key][ii, 0]:.5e}')
             print("")
 
-    def report_fit(self, fit):
-        dof = len(self.counts) - len(fit.x)
-        reduced_chi_sq = 2 * fit.cost / dof
-        if reduced_chi_sq > 1e5:
-            print(f"Reduced chi-squared: {reduced_chi_sq:.3e}")
-        else:
-            print(f"Reduced chi-squared: {reduced_chi_sq:.3f}")
-        print(f"message: {fit.message}")
-        print(f"Number of function evaluations: {fit.nfev}")
-        print(f"Number of Jacobian evaluations: {fit.njev}\n")
-    
-    def chi_sq(self):
-        if self.giwaxs:
-            chi_sq = 0
-            for sector in self.q.keys():
-                counts_hat = self.current_fit(sector)
-                chi_sq += np.sum(((self.counts[sector] - counts_hat) / self.weights[sector]) ** 2)
-        else:
-            counts_hat = self.fitting_function(self.hex, self.hex_peak_heights, self.hex_params, self.bkgd_heights, self.bkgd_const, self.bkgd_lin,
-                                               self.mono, self.mono_peak_heights, self.mono_params)
-            chi_sq = np.sum(((self.counts - counts_hat) / self.weights) ** 2)
-        return chi_sq
+    def fit_free_params(self, param_keys=[]):
+        free_parameters = list(self.hex)
+        for key in param_keys:
+            free_parameters.append(self.hex_params[key])
+        N = {}
+        M = {}
+        total_data = 0
+        sector_start = {}
+        sector_end = {}
+        for sector in self.keys:
+            N[sector] = len(free_parameters)
+            free_parameters.extend(list(self.hex_peak_heights[sector].flatten()))
+            M[sector] = len(free_parameters)
+            sector_start[sector] = total_data
+            total_data += len(self.counts[sector])
+            sector_end[sector] = total_data
+        
+        def residuals(params):
+            hex_lattice = np.array(params[:2])
+            hex_params = self.hex_params.copy()
+            for ii in range(len(param_keys)):
+                hex_params[param_keys[ii]] = params[2 + ii]
+            res = np.empty(total_data)
+            for sector in self.keys:
+                peak_heights = np.array(params[N[sector]:M[sector]]).reshape((len(self.hex_peak_heights[sector]), 1))
+                counts_hat = self.fitting_function(hex_lattice, peak_heights, hex_params,
+                                                   self.bkgd_heights[sector], self.bkgd_const[sector], self.bkgd_lin, sector)
+                res[sector_start[sector]:sector_end[sector]] = (counts_hat - self.counts[sector]) / self.weights[sector]
+            return res
+        
+        fit = least_squares(residuals, free_parameters, method="lm")
 
-    def report_chi_sq(self):
-        chi_sq = self.chi_sq()
-        print(f"Chi-squared: {chi_sq:.3f}")
-        dof = len(self.counts) - self.free_param_num
-        print(f"Degrees of freedom: {dof}")
-        print(f"Reduced chi-squared: {chi_sq / dof:.3f}")
+        try:
+            std = np.sqrt(np.diagonal(np.linalg.inv(fit.jac.T @ fit.jac) * (fit.fun.T @ fit.fun / (fit.fun.size - fit.x.size))))
+            print(f"a = ({fit.x[0]:.4f} \u00B1 {std[0]:.4f}) Angstroms")
+            print(f"c = ({fit.x[1]:.4f} \u00B1 {std[1]:.4f}) Angstroms")
+            if param_keys is not None:
+                for ii, key in enumerate(param_keys):
+                    print(f"{key} = ({fit.x[2 + ii]:.4f} \u00B1 {std[2 + ii]:.4f})")
+                    if key == "strain":
+                        if fit.x[2 + ii] < 0.5 * std[2 + ii]:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        except:
+            print("failed to calculate error")
+            print(f"a = {fit.x[0]:.4f} Angstroms")
+            print(f"c = {fit.x[1]:.4f} Angstroms")
+            if param_keys is not None:
+                for ii, key in enumerate(param_keys):
+                    print(f"{key} = {fit.x[2 + ii]:.4f}")
+                    if key == "strain":
+                        if fit.x[2 + ii] < 1e-10:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        self.report_fit(fit)
+        self.hex = np.array(fit.x[:2])
+        if param_keys is not None:
+            for ii, key in enumerate(param_keys):
+                self.hex_params[key] = fit.x[2 + ii]
+        for sector in self.keys:
+            self.hex_peak_heights[sector] = fit.x[N[sector]:M[sector]].reshape((len(self.hex_peak_heights[sector]), 1))
+        self.report_peaks()
+        return self.show_fit()
+    
+    def fit_background(self, param_keys=None):
+        free_parameters = list(self.hex)
+        if param_keys is not None:
+            for key in param_keys:
+                free_parameters.append(self.hex_params[key])
+        N = {}
+        M = {}
+        P1 = {}
+        P2 = {}
+        total_data = 0
+        sector_start = {}
+        sector_end = {}
+        for sector in self.keys:
+            N[sector] = len(free_parameters)
+            free_parameters.extend(list(self.hex_peak_heights[sector].flatten()))
+            M[sector] = len(free_parameters)
+            sector_start[sector] = total_data
+            total_data += len(self.counts[sector])
+            sector_end[sector] = total_data
+        for sector in self.keys:
+            P1[sector] = len(free_parameters)
+            free_parameters.extend(list(self.bkgd_heights[sector].flatten()))
+            P2[sector] = len(free_parameters)
+        self.free_param_num = len(free_parameters)
+
+        def residuals(params):
+            hex_lattice = np.array(params[:2])
+            hex_params = self.hex_params.copy()
+            for ii in range(len(param_keys)):
+                hex_params[param_keys[ii]] = params[2 + ii]
+            res = np.empty(total_data)
+            for sector in self.keys:
+                peak_heights = np.array(params[N[sector]:M[sector]]).reshape((len(self.hex_peak_heights[sector]), 1))
+                bkgd_heights = np.array(params[P1[sector]:P2[sector]]).reshape((len(self.bkgd_heights[sector]), 1))
+                counts_hat = self.fitting_function(hex_lattice, peak_heights, hex_params,
+                                                   bkgd_heights, self.bkgd_const[sector], self.bkgd_lin, sector)
+                res[sector_start[sector]:sector_end[sector]] = (counts_hat - self.counts[sector]) / self.weights[sector]
+            return res
+
+        fit = least_squares(residuals, free_parameters, method="lm")
+
+        try:
+            std = np.sqrt(np.diagonal(np.linalg.inv(fit.jac.T @ fit.jac) * (fit.fun.T @ fit.fun / (fit.fun.size - fit.x.size))))
+            print(f"a = ({fit.x[0]:.4f} \u00B1 {std[0]:.4f}) Angstroms")
+            print(f"c = ({fit.x[1]:.4f} \u00B1 {std[1]:.4f}) Angstroms")
+            if param_keys is not None:
+                for ii, key in enumerate(param_keys):
+                    print(f"{key} = ({fit.x[2 + ii]:.4f} \u00B1 {std[2 + ii]:.4f})")
+                    if key == "strain":
+                        if fit.x[2 + ii] < 0.5 * std[2 + ii]:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        except:
+            print("failed to calculate error")
+            print(f"a = {fit.x[0]:.4f} Angstroms")
+            print(f"c = {fit.x[1]:.4f} Angstroms")
+            if param_keys is not None:
+                for ii, key in enumerate(param_keys):
+                    print(f"{key} = {fit.x[2 + ii]:.4f}")
+                    if key == "strain":
+                        if fit.x[2 + ii] < 1e-10:
+                            print("Rejecting strain")
+                            self.hex_strain_lock = True
+                            return None
+        self.report_fit(fit)
+        self.hex = np.array(fit.x[:2])
+        if param_keys is not None:
+            for ii, key in enumerate(param_keys):
+                self.hex_params[key] = fit.x[2 + ii]
+        for sector in self.keys:
+            self.hex_peak_heights[sector] = fit.x[N[sector]:M[sector]].reshape((len(self.hex_peak_heights[sector]), 1))
+        self.report_peaks()
+        return self.show_fit()
+
 
 
 """
