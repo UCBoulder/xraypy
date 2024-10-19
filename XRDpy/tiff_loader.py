@@ -3,6 +3,7 @@ import yaml
 from pathlib import Path
 import fabio
 from pyFAI.detectors import Eiger1M
+import matplotlib.pylab as plt
 
 
 def load_from(directory: Path, exposure_time: int = None):
@@ -68,18 +69,23 @@ class Detector(Eiger1M):
     
     def calc_mask(self) -> np.ndarray:
         mask = super().calc_mask()
-        for row, col in Detector.DEAD_PIXELS:
-            mask[row, col] = 1
+        mask[self.DEAD_PIXELS] = 1
+        for row_start_quad in self.ISSUE_QUADS[0]:
+            for col_start_quad in self.ISSUE_QUADS[1]:
+                mask[row_start_quad:(row_start_quad + 4), col_start_quad:(col_start_quad + 4)] = 1
         return mask
     
-    def get_size(self) -> tuple:
-        return (Detector.ROWS, Detector.COLS)
+    @classmethod
+    def get_size(cls) -> tuple:
+        return (cls.ROWS, cls.COLS)
     
-    def get_rows(self) -> int:
-        return Detector.ROWS
+    @classmethod
+    def get_rows(cls) -> int:
+        return cls.ROWS
     
-    def get_columns(self) -> int:
-        return Detector.COLS
+    @classmethod
+    def get_columns(cls) -> int:
+        return cls.COLS
         
 
 class Stitcher:
@@ -87,11 +93,11 @@ class Stitcher:
     OVERLAP = 10
     DEAD_BAND_PIXELS = 37
     
-    def __init__(self):
+    def __init__(self, rows: int = 0, columns: int = 0):
         self.weight_per = 0.5
         self.detector = Detector()
-        self.stitch_rows = 0
-        self.stitch_columns = 0
+        self.stitch_rows = rows
+        self.stitch_columns = columns
         self.size = (0, 0)
         
     def _determine_size(self):
@@ -101,39 +107,36 @@ class Stitcher:
         print(self.size)
 
     def load_data(self, directory: Path):
-        for file in directory.glob("*_*_*"):
-            try:
-                stitch_row, stitch_col, _ = file.name.split("_")
-                stitch_row = int(stitch_row)
-                stitch_col = int(stitch_col)
-                if stitch_row > self.stitch_rows:
-                    self.stitch_rows = stitch_row
-                if stitch_col > self.stitch_columns:
-                    self.stitch_columns = stitch_col
-            except ValueError:
-                pass
-        print(f"Stitching an eiger_run {self.stitch_rows} {self.stitch_columns}")
+        if self.size == (0, 0):
+            for file in directory.glob("*_*_*"):
+                try:
+                    stitch_row, stitch_col, _ = file.name.split("_")
+                    stitch_row = int(stitch_row)
+                    stitch_col = int(stitch_col)
+                    if stitch_row > self.stitch_rows:
+                        self.stitch_rows = stitch_row
+                    if stitch_col > self.stitch_columns:
+                        self.stitch_columns = stitch_col
+                except ValueError:
+                    pass
+        print(f"Stitching an eiger_stitch {self.stitch_rows} {self.stitch_columns}")
         self._determine_size()
 
         data = np.zeros(self.size, dtype=np.float64)
         weight = np.zeros(self.size, dtype=np.float64)
-        base_mask = np.ones((self.detector.ROWS, self.detector.COLS), dtype=np.uint32)
-        base_mask[self.detector.DEAD_PIXELS] = 0
-        for row_start_quad in self.detector.ISSUE_QUADS[0]:
-            for col_start_quad in self.detector.ISSUE_QUADS[1]:
-                base_mask[row_start_quad:(row_start_quad + 4), col_start_quad:(col_start_quad + 4)] = 0
-        for file in directory.glob("*_*_*"):
-            try:
-                stitch_row, stitch_col, stitch_offset = [int(num) for num in file.name.split("_")]
-                file_data = fabio.open(file).data
-                mask = base_mask.copy()
-                mask[np.where(file_data == self.detector.MAX_INT)] = 0
-                file_data *= mask
-                start_row = (2 - stitch_offset) * Stitcher.DEAD_BAND_PIXELS + (self.stitch_rows - stitch_row) * (self.detector.ROWS - Stitcher.OVERLAP)
-                start_column = (stitch_col - 1) * (self.detector.COLS - Stitcher.OVERLAP)
-                data[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += file_data
-                weight[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += mask
-            except ValueError:
-                pass
+        base_mask = np.logical_not(self.detector.calc_mask())
+        
+        for stitch_row in range(1, self.stitch_rows + 1):
+            for stitch_col in range(1, self.stitch_columns + 1):
+                for stitch_offset in range(1, 2 + 1):
+                    
+                    file_data = fabio.open(f"{stitch_row}_{stitch_col}_{stitch_offset}").data
+                    mask = base_mask.copy()
+                    mask[np.where(file_data == self.detector.MAX_INT)] = 0
+                    file_data *= mask
+                    start_row = (2 - stitch_offset) * Stitcher.DEAD_BAND_PIXELS + (self.stitch_rows - stitch_row) * (self.detector.ROWS - Stitcher.OVERLAP)
+                    start_column = (stitch_col - 1) * (self.detector.COLS - Stitcher.OVERLAP)
+                    data[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += file_data
+                    weight[start_row:(start_row + self.detector.ROWS), start_column:(start_column + self.detector.COLS)] += mask
         weight *= self.weight_per
         return data, weight

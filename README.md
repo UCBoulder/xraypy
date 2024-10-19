@@ -2,31 +2,25 @@
 
 Tools to assist in the operation and analysis of the WAXS/SAXS system in CU Physics. This software, installed on the computer running the system, can be used to assist in GIWAXS experiments, and can be installed on any computer to assist in data stitching, transformations, and reductions.
 
-
-
-## XRDpy GIX transformations
-
-When you do GIWAXS or GISAXS experiments, the images require a transformation to accomadate the [missing wedge](http://gisaxs.com/index.php/GI_missing_wedge). This is done using the [gixpy](https://github.com/etortorici/gixpy) package; you can reference gixpy's readme for more information on the transformation and why it is needed to be done.
-
 # Installation
 
 It is recommended to create a unique Anaconda environment for the installation because the install will generate globally callable commands from the terminal, and it is nice to isolate these within an Anaconda environment. [Detailed installation instructions can be found on the wiki](https://github.com/UCBoulder/XRDpy/wiki/Detailed-Installation-Instructions-(Windows)).
+
+You can simply download the repository, and in an Anaconda terminal, `cd` into the directory and call `python setup.py install` or `pip install -U .` 
 
 # Included CLI and GUI programs
 
 ## pyFAI-calib2
 
-This is included from pyFAI. Run `pyFAI-calib2` as a first step to generate a PONI file and call it "cal.poni" to place in the directory with the raw data. Using the auto-stitched TIFF file from a AgBh exposure is preferred.
+`pyFAI-calib2` is a simple GUI included from pyFAI. This can generate PONI files from fititng AgBh calibration data, and it can be used to generate masks.
 
 PONI refers to *point of normal incidence* and is the point on the detector that intersects the shortest line between the sample and the detector. In the orientation where the incident beam is normal to the detector and the sample is brought into the beam path, the PONI is the same as the beam center on the detector.
-
-This GUI can also be used to create and save masks for images.
 
 ### Calibration procedure
 
 - In the toolbar, select "Y" icon and select "Orient Y-axis downward"
 - In the right panel:
-    - Set wavelength to 1.5418 Angstrom
+    - Set wavelength to 1.54185 Angstrom
     - Select AgBh from calibrants
     - Select the ... button under "Detector" and then load from file
         - the install should save .h5 files for each eiger_stitch size in "Documents/XRDpy/detectors/". Select the file matching the calibration's stitch size.
@@ -39,77 +33,36 @@ This GUI can also be used to create and save masks for images.
 
 The PONI file contains all the relevant parameters (except the exposure time, incident angle, and the detector tilt angle).
 
-## `XRD-stitch`
+## `STITCH`
 
-This will stitch all the raw files in the current working directory. It won't adjust the intensity of pixels with different exposure times; instead it will output two TIFF files:
-
-- *raw-stitched-data.tif*: The stitched data without adjustment of different pixel's exposure times.
-- *stitched-exposure-time.tif*: A TIFF where each pixel's intensity represents the exposure time (in seconds) that that pixel in the data set had due to the stitching. This can be used to adjust the intensity of the data in *raw-stitched-data.tif* while keeping track of weights.
-
-It is not necessary to run `XRD-stitch` before transforming GIWAXS data with `XRD-film`, because, that command will also stitch. This command is meant for powder patterns using WAXS, and will copy a reduction Jupyter Notebook template to the data directory.
+This will stitch the raw image files from the /DATA/ directory on the Kubuntu control computer and generate .edf files of the data and the flat field so as to preserve counting statistics.
 
 ### Arguments
 
-- Exposure time (in seconds)
-    - This is exposure time given to `eiger-stitch` so it represents the total exposure time of two overlapping images (the exposure time of a single raw image is half of `<time in seconds>`).
-    - `<time in seconds>` must be an integer.
-    - optional if `"exposure"` is defined in *params.yaml*.
-    - eg: `XRD-stitch 1200`.
-
-### Flags
-- `--incident INCIDENT_ANGLE` or `-I INCIDENT_ANGLE`
-    - This is the angle of incidence of the beam with the sample; i.e. how many degrees the sample is tipped wrt to the beam.
-    - Optional to give to XRD-stitch, and can be defined later. This will also get saved in *params.yaml*
-    - eg: `XRD-stitch 1200 --incident 0.2`
-- `--tilt TILT_ANGLE` or `-T TILT_ANGLE`
-    - This is fully optional.
-    - This will rotate the detector clockwise (positive direction) relative to the sample so that you can align the sample normal to the detector's y-direction if the sample is tilted.
-- `--dir "PATH TO DATA"` or `-D "PATH TO DATA"`
-    - By default, it will look for the data in the current working directory, but you can specify another location. All the saved files will be saved here as well.
-- `--plot` or `-P`
-    - Produce plots of the stitched data using matplotlib.
-- `--override` or `-O`
-    - By default, if `XRD-stitch` has already been ran and has saved data, running it again will just load the data found in the working directory. This tag will delete these first and re-stitch the data.
-
-## `XRD-film`
-
-Running this will look for data produced by `XRD-stitch`, and if that isn't found will first stitch the raw data. It will also copy a GIWAXS reduction template Jupyter Notebook in the data directory.
-
-This will transform data taken on aligned thin films (e.g. GIWAXS). An incident angle must be defined for the transform to work. This works for grazing incidence as well as non-grazing incidence.
-
-If `"incident"` isn't already defined in *params.yaml*, it must be provided with a flag. By default, both a cake ($|\mathbf{q}|$ vs $\Omega$) and a reciprocal lattice ($q_z$ vs $q_{xy}$) plot will be made and saved as TIFFs. The plots will have intensity adjusted due to the relative exposure at that location, but the TIFF will save the data unadjusted.
-
-For both the cake and reciprocal lattice plots, two individual TIFF files will be produced (one for the intensity per bin and one for exposure time per bin) as well as yaml file containing the first and last value of each axis as well as the number of bins on that axis.
+- Experiment type
+    - Description of experiment. E.g. WAXS, SAXS, GIWAXS, or GISAXS.
+- Stitch Rows
+    - Number of rows in stitch (1 or 2)
+- Stitch Columns
+    - Number of columns in stitch (1, 2, or 3)
+- Exposure time
+    - Exposure time of each image in seconds (this time gets split between each 'half' image that fill in the gap between pixel banks).
 
 ### Flags
 
-- `--exposure EXPOSURE_TIME` or `-E EXPOSURE_TIME`
-    - This is exposure time given to `eiger-stitch` so it represents the total exposure time of two overlapping images (the exposure time of a single raw image is half of `EXPOSURE_TIME`).
-    - `EXPOSURE_TIME` must be an integer (and is in seconds).
-    - optional if `"exposure"` is defined in *params.yaml*.
-    - eg: `XRD-stitch --exposure 1200`.
-
+These optional flags allow you to add more information the .edf file header or allow you to optionally save the data as .tif files as well.
 - `--incident INCIDENT_ANGLE` or `-I INCIDENT_ANGLE`
     - This is the angle of incidence of the beam with the sample; i.e. how many degrees the sample is tipped wrt to the beam.
-    - Optional to give to XRD-stitch, and can be defined later. This will also get saved in *params.yaml*
-    - eg: `XRD-stitch 1200 --incident 0.2`
-- `--tilt TILT_ANGLE` or `-T TILT_ANGLE`
-    - This is fully optional.
-    - This will rotate the detector clockwise (positive direction) relative to the sample so that you can align the sample normal to the detector's y-direction if the sample is tilted.
-- `--dir "PATH TO DATA"` or `-D "PATH TO DATA"`
-    - By default, it will look for the data in the current working directory, but you can specify another location. All the saved files will be saved here as well.
-- `--plot` or `-P`
-    - Plot everything via matplotlib
-- `--override` or `-O`
-    - By default, it will first look for previously transformed data and load that, instead of doing the transform from scratch. This tag will delete previously saved data and redo the transform.
-- `--cake` or `-C`
-    - This will produce a cake plot (2D integration) via pyFAI.
-- `--reduce` or `-R`
-    - This will produce a reduction (1D integration) via pyFAI
+- `--om OMEGA_ANGLE` or `-O OMEGA_ANGLE`
+    - This is the motor position of the omega motor (aka om).
+- `--dist DET_DIST` or `-D DET_DIST`
+    - The sample detector distance in meters.
+- `--tif` or `-T`
+    - If you use this flag, .tif files will also be generated.
 
-## `XRD-imacro`
+## `GI-scan`
 
-Running this will produce a macro in Documents/XRDpy/Macros to scan om in order to tune the angle of incidence for thin film studies. The scan takes approximately 1 minute for every 10 angles (6 seconds / angle).
+Running this will produce a macro in Documents/XRDpy/Macros to scan om or z in order to tune the angle of incidence for thin film studies. The scan takes approximately 1 minute for every 10 angles (6 seconds / angle).
 
 The program will print the command you need to feed to the SAXS program to run the macro.
 
@@ -117,36 +70,44 @@ Note: Macro names include date and hour, so if you save two macros in the same h
 
 ### Arguments
 
-- Starting angle (in degrees)
-    - The first angle in the scan (smallest or most negative)
-- End angle (in degrees)
-    - The last angle in the scan (largest or least negative)
-- Angle step size (in degrees)
-    - how large of a step to take between each angle in the scan
-
-e.g. `XRD-imacro 0 1 .01`
+- Motor to scan.
+    - Either 'om' for angular scan or 'z' for linear scan.
+- Starting angle (in degrees) or position (in mm).
+    - The first position in the scan (smallest or most negative).
+    - How far below the current position (in degrees or mm) for relative scans.
+- End angle (in degrees) or position (in mm).
+    - The last angle in the scan (largest or least negative).
+    - How far above the current position (in degrees or mm) for relative scan.
+- Angle step size (in degrees).
+    - how large of a step to take between each position in the scan.
 
 ### Flags
-- `--name STRING_TO_ADD_TO_NAME` or `-N STRING_TO_ADD_TO_NAME`
-    - Optionally add a short tag to the TIFF file names generated
+- `--relative` or `-R`
+    - Makes scan relative to current position.
+- `--name TAG_FOR_FILE` or `-N TAG_FOR_FILE`
+    - Add an optional note to the file names.
 - `--clear` or `-C`
-    - Clear all previously saved macros to free up space
+    - Clear out macro files built up in macro folder.
 
-## `XRD-imove`
+e.g. `GI-scan om 0 1 .01`
 
-All the TIFFs produced by `XRD-imacro` will be saved in the DATA directory, to avoid clutter, run this command to move them to a personal directory: Documents/XRDpy/\<user-name\>. It is recommended to use your identikey (i.e. abcd1234) as your user-name.
+## `GI-move`
+
+All the TIFFs produced by `GI-scan` will be saved in the DATA directory, to avoid clutter, run this command to move them to a personal directory: Documents/XRDpy/\<user-name\>. It is recommended to use your identikey (i.e. abcd1234) as your user-name.
 
 ### Arguments
+- Motor that was scanned
+    - Either "om" or "z".
 - User-name
-    - This will be where your data gets saved. Use your identikey
+    - This will be where your data gets saved. Use your identikey.
 
-e.g. `XRD-imove abcd1234`
+e.g. `GI-scan om abcd1234`
 
 ### Flags
 - `--append` or `-A`
     - By default, a new directory will be made in your personal directory every time you use `XRD-imove`, but using this flag will move the data to the last directory created in the same day. This is for if you need to append an om scan with more data.
 
-## `XRD-iplot`
+## `GI-plot`
 
 This will find the latest om scan you have performed in your personal directory and plot the data.
 
@@ -154,26 +115,24 @@ This will find the latest om scan you have performed in your personal directory 
 - User-name
     - This is where the program will look for your latest scan
 
-e.g. `XRD-iplot abcd1234`
+e.g. `GI-plot abcd1234`
 
 ### Flags
 - `--animate` or `-A`
     - Produce an animation (movie) playing through each image in the scan.
 - `--title TITLE` or `-T TITLE`
     - Give the main plot this TITLE.
-- `--date DATE` or `-D DATE`
-    - Look for a directory from a previous date from today. Must give the following format YYYYMMDD.
-- `--number NUM` or `-N NUM`
-    - Look for a directory from a previous scan that wasn't the most recent in today's (or a previous date if `--date` was used). Indexed from 1. If this isn't specified, it will automatically find the most recent.
-- `--crop_width` or `-CW`
-    - The TIFFs are all cropped around the beam center. This specifies how many pixels horizontally to keep. 13 is the default value
-- `--crop_above` or `-CA`
-    - How many pixels to keep above the beam center. 100 is the default.
-- `--crop_below` or `-CB`
-    - How many pixels to keep below the beam center. 20 is the default.
-- `--crop_offset` or `-CO`
-    - Move the center of the crop in the horizontal direction. By default, this value is 0.
-- `--color` or `-C`
-    - An integer value you can give to change the color scheme of the plots. If you give too large a value, it will just cycle through the available color schemes.
-- `--dir PATH`
+- `--mod -1` or `-M -1`
+    - move $z_0$ in om-scan or change cut off in z-scan (in standard deviations of the beam width; default is 4).
+- `--crit COMMA,SEPARATED,CRITICAL,ANGLES` or `-C COMMA,SEPARATED,CRITICAL,ANGLES`
+    - comma separated critical angles. Double up on numbers for waveguiding in that layer.
+- `--z` or `-Z`
+    - Default is an om-specular-scan. This will change to z-specular-scan.
+- `--dir PATH` or `-D PATH`
     - Override directory search entirely and look in `PATH` for the files. Can give `-D CWD` to get current working directory. Note: `-D` is for `--date`, not `--dir`.
+- `--range 1.0` or `-R 1.0`
+    - The angular range for an om-specular-scan. This will change where the plot is cut off at the top.
+- `--beamwidth HORIZONTAL_BEAMSIZE` or `-B HORIZONTAL_BEAMSIZE`
+    - Sets the horizontal crop of the beam. Should be roughly the same size as the horizontal shutter.
+- `--save IMAGE_DPI` or `-S IMAGE_DPI`
+    - Save the plot.
