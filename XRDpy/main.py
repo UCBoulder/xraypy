@@ -1,4 +1,5 @@
 import numpy as np
+from datetime import datetime
 import argparse
 import yaml
 import fabio
@@ -6,13 +7,15 @@ import pyFAI
 from pathlib import Path
 import XRDpy.package_params as package
 import shutil
-from XRDpy.tiff_loader import load_from, load_from2
+from XRDpy.tiff_loader import load_from, Stitcher
 from XRDpy.transform import TransformGIX
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
 import matplotlib
 matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
+
+DATA_PATH = Path("DATA")
 
 class ProcessParse:
 
@@ -174,11 +177,17 @@ class StitchParse2(ProcessParse):
             "stitch",
             "Stitch together raw images from Eiger R 1M that eiger-stitch produced.",
         )
+        self.parser.add_argument("experiment", help="experiment type. Example: WAXS, SAXS, GIWAXS, GISAXS")
         self.parser.add_argument("rows")
         self.parser.add_argument("columns")
+        self.parser.add_argument("exposure")
+        self.parser.add_argument("-I", "--incident", help="incident angle in degrees (for GIXS)")
+        self.parser.add_argument("-O", "--om", help="omega motor position in degrees (for GIXS)")
+        self.parser.add_argument("-D", "--dist", help="sample detector distance")
+        self.parser.add_argument("-T", "--tif", action="store_true")
         self.stitch()
     
-    def stitch(self):
+    def stitch(self, name_override=None):
         self.args = self.parser.parse_args()
 
         if self.args.dir is None:
@@ -186,13 +195,37 @@ class StitchParse2(ProcessParse):
         else:
             self.dir = Path(self.DATA)
         
-        newest_file = self.get_newest_file(self.dir)
-        filename_base = newest_file.name.strip(".tif")
+        if name_override is None:
+            newest_file = self.get_newest_file(self.dir)
+            filename_base = newest_file.name.strip(".tif")
+        else:
+            filename_base = name_override.strip(".tif").strip(".edf")
 
-        self.save_params()
-        data, flat_field = load_from2(self.dir, int(self.args.rows), int(self.args.columns), filename_base)
+        stitcher = Stitcher(int(self.args.rows), int(self.args.columns))
+        data, flat_field = stitcher.load_data(DATA_PATH)
 
-        return data, flat_field
+        date = datetime.now()
+        header = {
+            "StitchingRows": self.args.rows,
+            "StitchingColumns": self.args.cols,
+            "ExposureTime(s)": self.args.exposure,
+            "ExperimentType": self.args.experiment,
+            "IncidentAngle": self.args.incident,
+            "OmegaMotorAngle": self.args.om,
+            "DetectorDistance": self.args.dist,
+            "StitchDate": f"{date.year}-{date.month:02d}-{date.day:02d}"
+        }
+
+        edf_data_obj = fabio.edfimage.EdfImage(data=data, header=header)
+        edf_flat_obj = fabio.edfimage.EdfImage(data=flat_field, header=header)
+        edf_data_obj.write(self.dir / (filename_base + "_data.edf"))
+        edf_flat_obj.write(self.dir / (filename_base + "_flat-field.edf"))
+
+        if self.args.tif:
+            data_im = fabio.tifimage.tifimage(data)
+            flat_field = fabio.tifimage.tifimage(flat_field)
+            data_im.write(self.dir / (filename_base + "_data.tif"))
+            flat_field.write(self.dir / (filename_base + "_flat-field.tif"))
 
     @staticmethod
     def get_newest_file(directory: Path) -> Path:

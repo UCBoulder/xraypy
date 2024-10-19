@@ -25,23 +25,6 @@ def load_from(directory: Path, exposure_time: int = None):
     return data, weight
 
 
-def load_from2(directory: Path, rows: int, columns: int, name: str):
-    stitched_data_file = directory / (name + "_stitch.tif")
-    flat_field_file = directory / (name + "_flatfield.tif")
-    if stitched_data_file.is_file():
-        stitched_data_file.unlink()
-    if flat_field_file.is_file():
-        flat_field_file.unlink()
-    print("Stitching raw images.")
-    stitcher = Stitcher(rows, columns)
-    data, weight = stitcher.load_data(directory)
-    data_im = fabio.tifimage.tifimage(data)
-    weight_im = fabio.tifimage.tifimage(weight)
-    data_im.write(stitched_data_file)
-    weight_im.write(flat_field_file)
-    return data, weight
-
-
 def handle_yaml(directory: Path, exposure_time: int):
     yaml_file = directory / "params.yaml"
     if (directory / yaml_file).is_file():

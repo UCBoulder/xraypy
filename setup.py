@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from pathlib import Path
 import shutil
 import yaml
@@ -29,8 +29,8 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='2.5',
-    packages=["XRDpy", "XRDpy.incident"],
+    version='3.0',
+    packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
     entry_points = {
@@ -41,7 +41,7 @@ setup(
             "GISAXS=XRDpy.main:film",
             "WAXS=XRDpy.main:stitch",
             "SAXS=XRDpy.main:stitch",
-            "stitch=XRDpy.main:stitch2",
+            "STITCH=XRDpy.main:stitch2",
             "GI-scan=XRDpy.incident.main:make",
             "GI-move=XRDpy.incident.main:move",
             "GI-plot=XRDpy.incident.main:plot",
