@@ -116,6 +116,8 @@ class SpecularOmega:
                                            p0=(0.75 * rows, 100, db_y.max()),
                                            nan_policy="omit")
         beam_center = (y0, x0)
+        self.bc_sigma = sigma_y
+        self.bc_amp = a_y
         to_write = {"beamcenter": {'x': float(x0), 'y': float(y0)},
                     "sigma": {'x': float(sigma_x), 'y': float(sigma_y)},
                     "amplitude": {'x': float(a_x), 'y': float(a_y)}}
