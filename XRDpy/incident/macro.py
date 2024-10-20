@@ -63,12 +63,9 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
             f.write(f"umv z {z}\n")
             formatted_angle = "{}_{}".format(*str(z).split("."))
             f.write(f"eiger_run 0.1 z_scan_{tag}{formatted_angle}_mm.tif\n")
-
-        f.write("umvr z -10\n")  # move sample out of the way
-        # f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
-        f.write("umvr z 10\n")  # move sample back into beam
-        f.write("umvr wbs -5\n")
         f.write(f"umv z {final}\n")
+        f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
+        f.write("umvr wbs -5\n")
     num = len(zs) + 1
     time_min = float(num) * 0.1
     minutes = int(time_min)

@@ -15,28 +15,27 @@ def plot():
         description="Plot om scan as an image with horizontal integration over pixels, rows: y-pixels, columns: om, color: intensity\nThis will look for data in the latest directory of the user",
         epilog="author: Teddy Tortorici <edward.tortorici@colorado.edu>"
     )
-    parser.add_argument("user", help="This will be the name of the directory the files will be looked for")
+    parser.add_argument("dir", help="Specify a specific directory, or CWD for current working directory")
+    # parser.add_argument("user", help="This will be the name of the directory the files will be looked for")
     parser.add_argument("-A", "--animate", help="animate: specify frame-rate in FPS")
     parser.add_argument("-T", "--title")
     parser.add_argument("-M", "--mod", help="modify fit or plot (z0 adjust for om or change std for z)")
     parser.add_argument("-C", "--crit", help="add critical angles (comma separated)")
     parser.add_argument("-Z", "--z", action="store_true", help="change to a z-specular scan")
-    parser.add_argument("-D", "--dir", help="Specify a specific directory, or CWD for current working directory")
+    # parser.add_argument("-D", "--dir", help="Specify a specific directory, or CWD for current working directory")
     parser.add_argument("-R", "--range", help="set angular range in degrees")
     parser.add_argument("-B", "--beamwidth", help="set beam width in mm")
     parser.add_argument("-S", "--save", help="save the plot at a certain DPI")
     args = parser.parse_args()
 
-    if args.z:
-        spec_type = "z"
-    else:
-        spec_type = "om"
-    usr_dir = package.directory / args.user / "{}_scans".format(spec_type)
-
-    date = datetime.now()
-    date_name = f"{date.year}{date.month:02d}{date.day:02d}"
-    
-    directory = usr_dir / date_name
+    # if args.z:
+    #     spec_type = "z"
+    # else:
+    #     spec_type = "om"
+    #usr_dir = package.directory / args.user / "{}_scans".format(spec_type)
+    #date = datetime.now()
+    #date_name = f"{date.year}{date.month:02d}{date.day:02d}"
+    #directory = usr_dir / date_name
 
     if args.dir is not None:
         if args.dir.upper() == "CWD":
@@ -64,7 +63,7 @@ def plot():
         if args.crit is None:
             crit = None
         else:
-            crit = [float(c) for c in args.mod.split(",")]
+            crit = [float(c) for c in args.crit.split(",")]
         if args.mod is not None:
             spec.fit(z0=float(args.mod))
         spec.plot(critical_angle=crit)

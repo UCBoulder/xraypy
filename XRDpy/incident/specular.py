@@ -322,8 +322,10 @@ class SpecularOmega:
                 last = crit
         color_bar = fig.colorbar(color_map, ax=ax)
 
+        ax.set_xlim(self.angles.min(), self.angles.max())
+
         ax.set_xlabel("$\\omega\\ (\\degree)$", fontsize=12)
-        ax.set_label("Counts in row", fontsize=12)
+        ax.set_ylabel("Counts in row", fontsize=12)
         ax.set_title(title)
         fig.tight_layout()
         return fig, ax

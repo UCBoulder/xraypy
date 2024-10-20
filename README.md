@@ -115,7 +115,7 @@ This will find the latest om scan you have performed in your personal directory 
 - User-name
     - This is where the program will look for your latest scan
 
-e.g. `GI-plot abcd1234`
+e.g. `GI-plot PATH_TO_DATA`
 
 ### Flags
 - `--animate` or `-A`
@@ -128,8 +128,6 @@ e.g. `GI-plot abcd1234`
     - comma separated critical angles. Double up on numbers for waveguiding in that layer.
 - `--z` or `-Z`
     - Default is an om-specular-scan. This will change to z-specular-scan.
-- `--dir PATH` or `-D PATH`
-    - Override directory search entirely and look in `PATH` for the files. Can give `-D CWD` to get current working directory. Note: `-D` is for `--date`, not `--dir`.
 - `--range 1.0` or `-R 1.0`
     - The angular range for an om-specular-scan. This will change where the plot is cut off at the top.
 - `--beamwidth HORIZONTAL_BEAMSIZE` or `-B HORIZONTAL_BEAMSIZE`
