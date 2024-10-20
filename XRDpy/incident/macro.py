@@ -2,7 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-def create_om_file(directory: Path, angles: list, tag: str = "", final: int = -6) -> None:
+def create_om_file(directory: Path, angles: list, tag: str = "", final: int = -4) -> None:
     """
     Create a macro file for scanning angle for GIWAXS
     :param angles: list of angles to scan through
@@ -62,13 +62,13 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
         for z in zs:
             f.write(f"umv z {z}\n")
             formatted_angle = "{}_{}".format(*str(z).split("."))
-            f.write(f"eiger_run 0.1 z_scan_{tag}{formatted_angle}_degrees.tif\n")
+            f.write(f"eiger_run 0.1 z_scan_{tag}{formatted_angle}_mm.tif\n")
 
         f.write("umvr z -10\n")  # move sample out of the way
         # f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
         f.write("umvr z 10\n")  # move sample back into beam
         f.write("umvr wbs -5\n")
-        f.write(f"umv om {final}\n")
+        f.write(f"umv z {final}\n")
     num = len(zs) + 1
     time_min = float(num) * 0.1
     minutes = int(time_min)
@@ -76,7 +76,7 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
     print(f"Macro written with {num} images. Estimated time (min:sec): {minutes}:{seconds:02d}")
     print("Copy and paste the following into SAXS to run the macro:")
     print("do " + (directory / macroname).as_posix())
-    print(f"WARNING: will leave om at {final} degrees")
+    print(f"WARNING: will leave z at {final} degrees")
     return None
 
 def create_rel_file(directory: Path, motor: str, below: float, above: float, step: float, tag: str = "") -> None:

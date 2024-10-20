@@ -33,26 +33,10 @@ def plot():
         spec_type = "om"
     usr_dir = package.directory / args.user / "{}_scans".format(spec_type)
 
-    if args.date is None:
-        date = datetime.now()
-        date_name = f"{date.year}{date.month:02d}{date.day:02d}"
-    else:
-        date_name = args.date
-        if len(date_name) != 8:
-            raise ValueError(f"The given date must be in the form YYYYMMDD.")
-        try:
-            int(date_name)
-        except ValueError:
-            raise ValueError(f"The given date must be in the form YYYYMMDD with all integer values.")
+    date = datetime.now()
+    date_name = f"{date.year}{date.month:02d}{date.day:02d}"
     
-    if args.number is None:
-        directory = Path(max(usr_dir.glob(f"{date_name}-*"), key=lambda d: int(d.name.split("-")[-1]), default=1).rstrip("-1"))
-        date_name = f"{date_name}-{dir_num}"
-        directory = usr_dir / date_name.rstrip("-1")
-    else:
-        dir_num = int(args.number)
-        date_name = f"{date_name}-{dir_num}"
-        directory = usr_dir / date_name.rstrip("-1")
+    directory = usr_dir / date_name
 
     if args.dir is not None:
         if args.dir.upper() == "CWD":
@@ -71,9 +55,9 @@ def plot():
 
     if args.z:
         if args.mod is None:
-            std = float(args.mod)
-        else:
             std = 4.
+        else:
+            std = float(args.mod)
         spec = specular.SpecularZ(directory, angular_range=angular_range, beam_width=beamwidth, standard_deviations=std)
     else:
         spec = specular.SpecularOmega(directory, anglular_range=angular_range, beam_width=beamwidth)
@@ -167,11 +151,11 @@ def make_scan():
     parser.add_argument("-C", "--clear", action='store_true', help="remove all macro files saved")
     dir = Path.home() / "XRDpy" / "Macros"
     args = parser.parse_args()
-    if args.type.lower not in ["om", "z"]:
+    if args.type.lower() not in ["om", "z"]:
         raise ValueError("Invalid type. Must be 'om' or 'z'.")
     if args.clear:
-        for macro in dir.glob("*.txt"):
-            macro.unlink()
+        for macro_file in dir.glob("*.txt"):
+            macro_file.unlink()
     if args.name is None:
         args.name = ""
     if args.relative:

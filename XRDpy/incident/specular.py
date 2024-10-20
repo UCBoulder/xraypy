@@ -168,10 +168,7 @@ class SpecularOmega:
         if self.file_type == ".edf":
             angle = fabio.open(filename).header["Comment"].replace("Base - ", "")
         elif self.file_type == ".tif":
-            try:
-                angle = self.angle_from_filename(filename.name)
-            except IndexError:
-                angle = self.angle_from_filename2(filename.name)
+            angle = self.angle_from_filename(filename.name)
         return float(angle)
 
     @staticmethod
@@ -185,24 +182,7 @@ class SpecularOmega:
             angle += float(right_of_decimal) / 10. ** len(right_of_decimal)
         angle = round(angle, 3)
         return angle
-    
-    @staticmethod
-    def angle_from_filename(filename: str):
-        number_str_list = filename.replace(".tif", "").split("-")[-1].split("pt")
-        left_of_decimal = number_str_list[0]
-        right_of_decimal = number_str_list[1]
-        right_of_decimal = float(right_of_decimal) * 10 ** -len(right_of_decimal)
-        if "m" in left_of_decimal:
-            left_of_decimal = left_of_decimal.replace("m", "")
-            sign = -1
-        else:
-            left_of_decimal = left_of_decimal.replace("p", "")
-            sign = 1
-        if not left_of_decimal:
-            left_of_decimal = 0
-        angle = sign * round(float(left_of_decimal) + right_of_decimal, 3)
-        return angle
-    
+       
     def process_data(self):
         if self.beam_center is not None:
             self.z -= (self.detector.shape[0] - self.beam_center[0]) * self.pixel_size

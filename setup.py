@@ -29,7 +29,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='3.01',
+    version='3.06',
     packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
