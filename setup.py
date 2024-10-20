@@ -29,7 +29,7 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='3.0',
+    version='3.01',
     packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
@@ -42,7 +42,7 @@ setup(
             "WAXS=XRDpy.main:stitch",
             "SAXS=XRDpy.main:stitch",
             "STITCH=XRDpy.main:stitch2",
-            "GI-scan=XRDpy.incident.main:make",
+            "GI-scan=XRDpy.incident.main:make_scan",
             "GI-move=XRDpy.incident.main:move",
             "GI-plot=XRDpy.incident.main:plot",
         ],
