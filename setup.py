@@ -36,9 +36,9 @@ setup(
     entry_points = {
         "console_scripts": [
             "STITCH=XRDpy.main:stitch",
-            "GI-scan=XRDpy.incident.main:make_scan",
-            "GI-move=XRDpy.incident.main:move",
-            "GI-plot=XRDpy.incident.main:plot",
+            "GI-scan=XRDpy.main:make_scan",
+            "GI-move=XRDpy.main:move",
+            "GI-plot=XRDpy.main:plot",
         ],
     },
     # data_files=[(str(install_dir), [str(Path("files") / "1 3 detector.h5")])],
