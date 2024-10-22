@@ -64,7 +64,7 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
             formatted_angle = "{}_{}".format(*str(z).split("."))
             f.write(f"eiger_run 0.1 z_scan_{tag}{formatted_angle}_mm.tif\n")
         f.write(f"umv z {final}\n")
-        f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
+        f.write("eiger_run 0.1 z_scan_direct_beam.tif\n")  # take direct beam exposure
         f.write("umvr wbs -5\n")
     num = len(zs) + 1
     time_min = float(num) * 0.1

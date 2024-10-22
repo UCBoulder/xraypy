@@ -100,6 +100,10 @@ All the TIFFs produced by `GI-scan` will be saved in the DATA directory, to avoi
     - Either "om" or "z".
 - User-name
     - This will be where your data gets saved. Use your identikey.
+- Position of other motor
+    - Use `wm om` or `wm z` in SPEC to find the position.
+    - If doing an om-scan, specify `wm z`
+    - If doing a z-scan, specify `wm om`
 
 e.g. `GI-scan om abcd1234`
 
@@ -115,7 +119,7 @@ This will find the latest om scan you have performed in your personal directory 
 - User-name
     - This is where the program will look for your latest scan
 
-e.g. `GI-plot PATH_TO_DATA`
+e.g. `GI-plot PATH_TO_DATA -C .25,.19,.19`
 
 ### Flags
 - `--animate` or `-A`

@@ -29,19 +29,13 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='3.06',
+    version='3.07',
     packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
     entry_points = {
         "console_scripts": [
-            "GIX=XRDpy.main:film",
-            "GIWAXS=XRDpy.main:film",
-            "GIXS=XRDpy.main:film",
-            "GISAXS=XRDpy.main:film",
-            "WAXS=XRDpy.main:stitch",
-            "SAXS=XRDpy.main:stitch",
-            "STITCH=XRDpy.main:stitch2",
+            "STITCH=XRDpy.main:stitch",
             "GI-scan=XRDpy.incident.main:make_scan",
             "GI-move=XRDpy.incident.main:move",
             "GI-plot=XRDpy.incident.main:plot",

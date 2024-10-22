@@ -31,7 +31,7 @@ def save_data(directory: Path, filename: str, numpy_array: np.ndarray):
 
 class GIXS:
     def __init__(self, incident_angle_degrees: float, tilt_angle_degrees: float = 0.0, poni_file: Path = None):
-        self.incident_angle = np.radians(incident_angle_degrees)
+        self.incident_angle = np.radians(float(incident_angle_degrees))
         self.tilt_angle = np.radians(tilt_angle_degrees)
         if poni_file is None:
             self.ai_original = None
@@ -41,7 +41,7 @@ class GIXS:
         self.ai = None
         self.data = None
         self.flat_field = None
-        self.mask
+        self.mask = None
         self.header = {}
 
     def load(self, poni_file: Path):
@@ -56,7 +56,9 @@ class GIXS:
             else:
                 self.dir = Path.cwd()
 
-    def transform(self, image: np.ndarray, flat_field: np.ndarray = None, waveguiding: bool = False, refraction_angle_degrees: float = None):
+    def transform(self, image: np.ndarray, flat_field: np.ndarray = None,
+                  waveguiding: bool = False, refraction_angle_degrees: float = None,
+                  header: dict = {}):
         if self.ai_original is None:
             raise AttributeError("Must load a poni file first using .load(poni_file: Path)")
         if refraction_angle_degrees is None:
@@ -68,19 +70,20 @@ class GIXS:
             refraction_angle = np.radians(refraction_angle_degrees)
         if flat_field is None:
             flat_field = np.ones_like(image)
-        self.prep_transform(refraction_angle)
         self.data, self.flat_field, new_poni = self.transform_python(image, flat_field, refraction_angle)
         self.ai = copy.deepcopy(self.ai_original)
         self.ai.poni1 = new_poni[0]
         self.ai.poni2 = new_poni[1]
-        self.ai.detector = pyFAI.detectors.Detector(pixel1=self.ai.pixel1, pixel2=self.ai.pixel2, max_shape=self.data_t.shape, orientation=2)
+        detector = pyFAI.detectors.Detector(pixel1=self.ai.pixel1, pixel2=self.ai.pixel2, max_shape=self.data.shape, orientation=2)
+        detector.save(self.dir / "detector.h5")
+        self.ai.detector = detector
         self.ai.save(self.dir / "GIXS.poni")
-        self.header = {
-            "IncidentAngle": self.incident_angle,
-            "TiltAngle": self.tilt_angle,
-            "WaveGuiding": waveguiding,
-            "RefractionAngle": refraction_angle,
-        }
+
+        self.header["IncidentAngle(deg)"] = self.incident_angle
+        self.header["TiltAngle(deg)"] = self.tilt_angle
+        self.header["WaveGuiding"] = waveguiding
+        self.header["RefractionAngle"] = refraction_angle
+        
         return self.data, self.flat_field
 
     def save_edf(self, filename: str, directory_override: Path = None):
@@ -93,8 +96,8 @@ class GIXS:
         filename = filename.rstrip(".edf")
         edf_data_obj = fabio.edfimage.EdfImage(data=self.data, header=self.header)
         edf_flat_obj = fabio.edfimage.EdfImage(data=self.flat_field, header=self.header)
-        edf_data_obj.write(directory / (filename + "_transformed.edf"))
-        edf_flat_obj.write(directory / (filename + "_flat_field_t.edf"))
+        edf_data_obj.write(directory / (filename + "_data_transformed.edf"))
+        edf_flat_obj.write(directory / (filename + "_flat_field_transformed.edf"))
 
     def load_mask(self, mask_file: Path = None):
         if self.data is None:
@@ -114,7 +117,7 @@ class GIXS:
         cake = self.ai.integrate2d_ng(
             self.data, q_bins, azimuthal_bins,
             radial_range=None,   # In units specified below
-            azimuth_range=None,  # Start from 180 degrees to start from the axis to the right
+            azimuth_range=azimuth_range,  # Start from 180 degrees to start from the axis to the right
             mask=self.mask, flat=self.flat,
             error_model="poisson",  unit=unit,
             polarization_factor=None, correctSolidAngle=False,
@@ -162,11 +165,11 @@ class GIXS:
     def transform_python(self, data: np.ndarray, flat_field: np.ndarray, refraction_angle: float = 0.0):
         det_dist = self.ai_original.get_dist()
         # x is to the right from the PONI
-        x = (np.arange(self.shape[1], dtype=np.float64) + 0.5) * self.ai_original.pixel2 - self.ai_original.poni2
+        x = (np.arange(data.shape[1], dtype=np.float64) + 0.5) * self.ai_original.pixel2 - self.ai_original.poni2
         # z is up from the PONI
-        z = ((self.shape[0] - 0.5) - np.arange(self.shape[0], dtype=np.float64).reshape(-1, 1)) * self.ai_original.pixel1 - self.ai_original.poni1
+        z = ((data.shape[0] - 0.5) - np.arange(data.shape[0], dtype=np.float64).reshape(-1, 1)) * self.ai_original.pixel1 - self.ai_original.poni1
         sec_2theta = np.sqrt(x * x + z * z + det_dist * det_dist) / det_dist
-        self.solid_angle = sec_2theta * sec_2theta * sec_2theta
+        solid_angle = sec_2theta * sec_2theta * sec_2theta
 
         if self.tilt_angle:
             cos_tilt = np.cos(self.tilt_angle)
@@ -211,16 +214,16 @@ class GIXS:
 
         self.shape_transform = (int(self.row.max() + 2), int(self.col.max() + 2))
         
-        self.poni2_transform = (-r_xy.min() + 0.5) * self.ai_original.pixel2
-        self.poni1_transform = (self.shape_transform[0] - 0.5 - r_z.max()) * self.ai_original.pixel1
+        poni2_transform = (-r_xy.min() + 0.5) * self.ai_original.pixel2
+        poni1_transform = (self.shape_transform[0] - 0.5 - r_z.max()) * self.ai_original.pixel1
         print("New PONI:")
-        print("poni1: {}".format(self.poni1_transform))
-        print("poni2: {}".format(self.poni2_transform))
+        print("poni1: {}".format(poni1_transform))
+        print("poni2: {}".format(poni2_transform))
         
         print(self.shape_transform)
         data_transform = np.zeros(self.shape_transform)
         flat_transform = np.zeros(self.shape_transform)
-        data *= self.solid_angle
+        data *= solid_angle
         for rr in range(data.shape[0]):
             for cc in range(data.shape[1]):
                 row = self.row[rr, cc]
@@ -237,5 +240,5 @@ class GIXS:
                 data_transform[row + 1, col + 1] += data[rr, cc] * self.weight_dia_neighbor[rr, cc]
                 flat_transform[row + 1, col + 1] += flat_field[rr, cc] * self.weight_dia_neighbor[rr, cc]
                 
-        return data_transform, flat_transform
+        return data_transform, flat_transform, (poni1_transform, poni2_transform)
 
