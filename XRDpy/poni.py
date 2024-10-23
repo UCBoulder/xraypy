@@ -106,7 +106,7 @@ class Nudger:
 
 
 def new(dist: float, poni1: float, poni2: float, shape: tuple, pixel1: float = 75e-6, pixel2: float = 75e-6,
-        wavelength: float = 1.54185, rot1: float = 0, rot2: float = 0, rot3: float = 0, orientation: int = 2):
+        wavelength: float = 1.54185e-10, rot1: float = 0, rot2: float = 0, rot3: float = 0, orientation: int = 2):
     detector = pyFAI.detectors.Detector(pixel1=float(pixel1), pixel2=float(pixel2), max_shape=shape, orientation=orientation)
     ai = pyFAI.azimuthalIntegrator.AzimuthalIntegrator(float(dist), float(poni1), float(poni2), rot1, rot2, rot3, pixel1, pixel2,
                                                        detector=detector, wavelength=wavelength, orientation=orientation)

@@ -1,26 +1,9 @@
 import numpy as np
-import matplotlib.pylab as plt
-from matplotlib.colors import LogNorm
 from pathlib import Path
 import fabio
-from pyFAI.geometry import Geometry
+import os
 import copy
 import pyFAI
-import matplotlib
-matplotlib.rcParams['mathtext.fontset'] = 'stix'
-matplotlib.rcParams['font.family'] = 'STIXGeneral'
-
-
-def open_tiff(file_name: Path) -> np.ndarray:
-    return fabio.open(file_name).data
-
-
-def show_tiff(tiff: np.ndarray, title=None):
-    plt.figure()
-    plt.imshow(np.log10(tiff + 1))
-    if title is not None:
-        plt.title(title)
-
 
 def save_data(directory: Path, filename: str, numpy_array: np.ndarray):
     if filename[-4:] != ".csv":
@@ -106,7 +89,7 @@ class GIXS:
             self.mask = np.logical_not(self.flat_field)
         else:
             mask = fabio.open(mask_file).data.astype(bool)
-            self.mask = np.logical_or(mask, np.logical_not(np.logical_not(self.flat_field)))
+            self.mask = np.logical_or(mask, np.logical_not(self.flat_field))
 
     def integrate2d(self, q_bins: int = 500, azimuthal_bins: int = 180, radial_range: tuple = None,
                     azimuth_range: tuple = None, unit: str = "q_A^-1"):
@@ -118,7 +101,7 @@ class GIXS:
             self.data, q_bins, azimuthal_bins,
             radial_range=None,   # In units specified below
             azimuth_range=azimuth_range,  # Start from 180 degrees to start from the axis to the right
-            mask=self.mask, flat=self.flat,
+            mask=self.mask, flat=self.flat_field,
             error_model="poisson",  unit=unit,
             polarization_factor=None, correctSolidAngle=False,
         )
@@ -132,20 +115,24 @@ class GIXS:
             self.load_mask()
         if azimuth_range is None:
             azimuth_range = (-180, 0)
+
+        path = self.dir / "sectors"
+        path.mkdir(parents=True, exist_ok=True)
+        
         file_to_save += ".edf"
-        if (self.dir / file_to_save).is_file():
-            (self.dir / file_to_save).unlink()
+        file_to_save = path / file_to_save
+        
         if exposure_time is None:
             normalization_factor = 1
         else:
-            normalization_factor = exposure_time / 60
+            normalization_factor = float(exposure_time) / 60
         redu = self.ai.integrate1d_ng(
             self.data, q_bins, 
             radial_range=q_range,   # In units specified below
             azimuth_range=azimuth_range,  # Start from 180 degrees to start from the axis to the right
-            mask=self.mask, flat=self.flat, error_model="poisson",
+            mask=self.mask, flat=self.flat_field, error_model="poisson",
             correctSolidAngle=False,
-            unit=unit, filename=self.dir / file_to_save, normalization_factor=normalization_factor
+            unit=unit, filename=str(file_to_save), normalization_factor=normalization_factor
         )
         return redu
 
@@ -155,11 +142,11 @@ class GIXS:
                q_bins: int = 1000, unit="q_A^-1"):
         if azimuth_range is None and center is None and size is None:
             raise ValueError("Must provide either azimuth_range or center and size")
+        file_to_save += "_({},{})".format(*azimuth_range)
         if azimuth_range is not None:
             azimuth_range = (-azimuth_range[1], -azimuth_range[0])
         else:
             azimuth_range = (-center - 0.5 * size, -center + 0.5 * size)
-        file_to_save += "_({},{})".format(*azimuth_range)
         return self.integrate1d(file_to_save, q_range, azimuth_range, exposure_time, q_bins, unit)
     
     def transform_python(self, data: np.ndarray, flat_field: np.ndarray, refraction_angle: float = 0.0):
@@ -179,16 +166,26 @@ class GIXS:
             x = x_rot
         
         alpha = np.arctan2(z, det_dist) # alpha_s + alpha_i        
-        phi = np.arctan2(x * np.cos(alpha), det_dist)
-        cos_phi = np.cos(phi)
-        alpha -= self.incident_angle
-        cos_alpha = np.cos(alpha)
+        # phi = np.arctan2(x * np.cos(alpha), det_dist)
+        # cos_phi = np.cos(phi)
+        # alpha -= self.incident_angle
+        # cos_alpha = np.cos(alpha)
+        # internal_angle = self.incident_angle - refraction_angle
+        # cos_internal = np.cos(internal_angle)
+        x_sq = x * x
+        vert_dist_sq = z * z + det_dist * det_dist
+        ray_dist_sq = vert_dist_sq + x_sq
+        cos_phi = np.sqrt(vert_dist_sq / ray_dist_sq)
+        sin_phi = np.sqrt(x_sq / ray_dist_sq)
+        cos_alpha = np.cos(alpha - self.incident_angle)
+
         internal_angle = self.incident_angle - refraction_angle
         cos_internal = np.cos(internal_angle)
         
-        q_xy_sq = cos_alpha * cos_alpha + cos_internal * cos_internal - 2.0 * cos_internal * cos_alpha * cos_phi
+        q_y = cos_alpha * cos_phi - cos_internal
+        q_z = np.sin(alpha) * cos_phi + np.sin(internal_angle)
+        q_xy_sq = sin_phi * sin_phi + q_y * q_y
         q_xy = np.sqrt(q_xy_sq) * np.sign(x)
-        q_z = np.sin(alpha) + np.sin(internal_angle)
         q_sq = q_xy_sq + q_z * q_z
         
         q_scaler = det_dist * np.sqrt(4 - q_sq) / (2 - q_sq)
