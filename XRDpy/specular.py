@@ -189,6 +189,8 @@ class SpecularOmega:
         sorting_args = np.argsort(motor)
         motor = motor[sorting_args]
         intensity_data = intensity_data[sorting_args]
+        self.angles = motor
+        self.z_motor = motor
 
         return motor, intensity_data
     
