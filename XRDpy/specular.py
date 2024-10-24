@@ -494,7 +494,7 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        if self.fit_failed:
+        if not self.fit_failed:
             ax2.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.total_fit), "r")
         ax2.set_title("Total", fontsize=12)
 
@@ -505,7 +505,7 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        if self.fit_failed:
+        if not self.fit_failed:
             ax3.plot(z_m_fit, self.specular_fit(z_m_fit, *self.specz_fit), "r")
         ax3.set_title("Above Beam", fontsize=12)
         
@@ -516,11 +516,11 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        if self.fit_failed:
+        if not self.fit_failed:
             ax4.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.dbeam_fit), "r")
         ax4.set_title("Direct Beam", fontsize=12)
 
-        if self.fit_failed:
+        if not self.fit_failed:
             annotation_texts = (
                 f"$z_0 = ({self.total_fit[1]:.3f} \\pm {self.perr_total[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_total:.3f})$ mm",
                 f"$z_2 = ({self.specz_fit[1]:.3f} \\pm {self.perr_specz[1]:.3f})$ mm\n$z_1 = ({self.specz_fit[2]:.3f} \\pm {self.perr_specz[2]:.3f})$ mm\n$z_{{ave}}={0.5*(self.specz_fit[1]+self.specz_fit[2]):.3f}$ mm",
@@ -536,7 +536,7 @@ class SpecularZ(SpecularOmega):
                 ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
                 ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
                 # ax.legend(title="pixel")
-                
+
                 anchored_text = matplotlib.offsetbox.AnchoredText(ann, loc=loc, prop=dict(size=12), frameon=True)
                 anchored_text.patch.set_boxstyle("round,pad=0.5")
                 anchored_text.patch.set_facecolor('white')
