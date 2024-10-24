@@ -399,7 +399,7 @@ class SpecularOmega:
 
 class SpecularZ(SpecularOmega):
     def __init__(self, data_directory, det_dist=150, standard_deviations=4, angular_range=1.5, beam_width=1.):
-        
+        self.fit_failed = False
         super().__init__(data_directory, det_dist, angular_range, beam_width)
 
     def get_type(self):
@@ -466,6 +466,7 @@ class SpecularZ(SpecularOmega):
                 print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
         except RuntimeError:
             print("failed to fit")
+            self.fit_failed = True
 
         self.plot()
     
@@ -493,7 +494,8 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        ax2.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.total_fit), "r")
+        if self.fit_failed:
+            ax2.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.total_fit), "r")
         ax2.set_title("Total", fontsize=12)
 
         ax3.scatter(self.z_motor, self.z_specular,
@@ -503,7 +505,8 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        ax3.plot(z_m_fit, self.specular_fit(z_m_fit, *self.specz_fit), "r")
+        if self.fit_failed:
+            ax3.plot(z_m_fit, self.specular_fit(z_m_fit, *self.specz_fit), "r")
         ax3.set_title("Above Beam", fontsize=12)
         
         ax4.scatter(self.z_motor, self.z_primary,
@@ -513,32 +516,34 @@ class SpecularZ(SpecularOmega):
                    lw=2,  # marker edge width
                    alpha=1,  # transparency
                    facecolor='w')
-        ax4.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.dbeam_fit), "r")
+        if self.fit_failed:
+            ax4.plot(z_m_fit, self.occlusion_fit_single(z_m_fit, *self.dbeam_fit), "r")
         ax4.set_title("Direct Beam", fontsize=12)
 
-        annotation_texts = (
-            f"$z_0 = ({self.total_fit[1]:.3f} \\pm {self.perr_total[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_total:.3f})$ mm",
-            f"$z_2 = ({self.specz_fit[1]:.3f} \\pm {self.perr_specz[1]:.3f})$ mm\n$z_1 = ({self.specz_fit[2]:.3f} \\pm {self.perr_specz[2]:.3f})$ mm\n$z_{{ave}}={0.5*(self.specz_fit[1]+self.specz_fit[2]):.3f}$ mm",
-            f"$z_0 = ({self.dbeam_fit[1]:.3f} \\pm {self.perr_dbeam[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_dbeam:.3f})$ mm",
-        )
+        if self.fit_failed:
+            annotation_texts = (
+                f"$z_0 = ({self.total_fit[1]:.3f} \\pm {self.perr_total[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_total:.3f})$ mm",
+                f"$z_2 = ({self.specz_fit[1]:.3f} \\pm {self.perr_specz[1]:.3f})$ mm\n$z_1 = ({self.specz_fit[2]:.3f} \\pm {self.perr_specz[2]:.3f})$ mm\n$z_{{ave}}={0.5*(self.specz_fit[1]+self.specz_fit[2]):.3f}$ mm",
+                f"$z_0 = ({self.dbeam_fit[1]:.3f} \\pm {self.perr_dbeam[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_dbeam:.3f})$ mm",
+            )
 
-        locs = ["lower left", "lower center", "lower left"]
-        for ax, ann, loc in zip((ax2, ax3, ax4), annotation_texts, locs):
-            ax.tick_params(axis='both', which='both', direction='in', right=True, top=True)
-            ax.set_xlabel("$z$-motor (mm)", fontsize=12)
-            ax.set_ylabel("Counts", fontsize=12)
-            ax.grid(linestyle='dotted')
-            ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
-            ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
-            # ax.legend(title="pixel")
-            
-            anchored_text = matplotlib.offsetbox.AnchoredText(ann, loc=loc, prop=dict(size=12), frameon=True)
-            anchored_text.patch.set_boxstyle("round,pad=0.5")
-            anchored_text.patch.set_facecolor('white')
-            anchored_text.patch.set_alpha(0.8)
-            ax.add_artist(anchored_text)
-            #ax.text(self.z_motor.min(), 0.5 * self.specz_fit[1], ann, transform=ax.transAxes, fontsize=12,
-            #        verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+            locs = ["lower left", "lower center", "lower left"]
+            for ax, ann, loc in zip((ax2, ax3, ax4), annotation_texts, locs):
+                ax.tick_params(axis='both', which='both', direction='in', right=True, top=True)
+                ax.set_xlabel("$z$-motor (mm)", fontsize=12)
+                ax.set_ylabel("Counts", fontsize=12)
+                ax.grid(linestyle='dotted')
+                ax.xaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+                ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
+                # ax.legend(title="pixel")
+                
+                anchored_text = matplotlib.offsetbox.AnchoredText(ann, loc=loc, prop=dict(size=12), frameon=True)
+                anchored_text.patch.set_boxstyle("round,pad=0.5")
+                anchored_text.patch.set_facecolor('white')
+                anchored_text.patch.set_alpha(0.8)
+                ax.add_artist(anchored_text)
+                #ax.text(self.z_motor.min(), 0.5 * self.specz_fit[1], ann, transform=ax.transAxes, fontsize=12,
+                #        verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
         fig.suptitle("Specular z-scan")
         fig.tight_layout()
 
