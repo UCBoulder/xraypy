@@ -1,10 +1,10 @@
+import matplotlib.offsetbox
 import numpy as np
 import fabio
 import yaml
 import pyFAI.detectors as detectors
 from scipy.optimize import curve_fit, root_scalar
 from scipy.special import erf
-import pickle
 from pathlib import Path
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
@@ -18,6 +18,7 @@ class SpecularOmega:
     MAX_INT = (1 << 32) - 1
 
     def __init__(self, data_directory, det_dist=150, anglular_range=1.5, beam_width=1):
+        self.type = self.get_type()
         self.z0 = 0
         self.det_dist=det_dist
         self.beam_width = beam_width
@@ -26,6 +27,11 @@ class SpecularOmega:
         self.detector = None
         self.file_type = None
         self.beam_center = None
+        self.bc_sigma = None
+        self.bc_amp = None
+        self.standard_deviations=4
+        self.z_specular = None
+        self.counts_total = None
         self.determine_instrument()
 
         self.file_list = list(data_directory.glob("*" + self.file_type))
@@ -44,10 +50,20 @@ class SpecularOmega:
         self.intensity_specular = None
         self.run()
 
+    def get_type(self):
+        return "om"
+
     def save(self, directory: Path):
-        np.save(directory / "angles.npy", self.angles)
-        np.save(directory / "z_pos.npy", self.z)
-        np.save(directory / "specular_data.npy", self.intensity_specular)
+        if self.type == "om":
+            np.save(directory / "angles.npy", self.angles)
+            np.save(directory / "z_pos.npy", self.z)
+            np.save(directory / "specular_data.npy", self.intensity_specular)
+        elif self.type == "z":
+            np.save(directory / "z_motor.npy", self.z_motor)
+            np.save(directory / "z_pos.npy", self.z)
+            np.save(directory / "specular_data.npy", self.intensity_specular)
+        else:
+            raise AttributeError("Has not determined type of specular scan.")
 
     def run(self):
         direct_beam_file_index = self.find_direct_beam_file_index()
@@ -69,7 +85,9 @@ class SpecularOmega:
             self.beam_center = self.find_beam_center(direct_beam_file_index)
             print("Direct beam is at ({}, {})".format(*self.beam_center))
             del(self.file_list[direct_beam_file_index])
-            self.angles, self.intensity_data = self.load()
+            motor, self.intensity_data = self.load()
+
+        
         self.z_motor = self.angles
         self.process_data()
         self.fit()
@@ -155,17 +173,24 @@ class SpecularOmega:
         return file_data
     
     def load(self):
-        angles = np.empty(len(self.file_list))
+        motor = np.empty(len(self.file_list))
         intensity_data = np.empty((len(self.file_list), *self.detector.shape))
+        file_types = [""] * len(self.file_list)
         for ii, file in enumerate(self.file_list):
-            angles[ii] = self.get_angle(file)
+            if "om" in file.name:
+                file_types[ii] = "om"
+            elif "z" in file.name:
+                file_types[ii] = "z"
+            motor[ii] = self.get_angle(file)
             intensity_data[ii] = self.load_image(file)
+        
 
-        sorting_args = np.argsort(angles)
-        angles = angles[sorting_args]
+
+        sorting_args = np.argsort(motor)
+        motor = motor[sorting_args]
         intensity_data = intensity_data[sorting_args]
 
-        return angles, intensity_data
+        return motor, intensity_data
     
     def get_angle(self, filename: Path) -> float:
         if self.file_type == ".edf":
@@ -372,34 +397,26 @@ class SpecularOmega:
 
 class SpecularZ(SpecularOmega):
     def __init__(self, data_directory, det_dist=150, standard_deviations=4, angular_range=1.5, beam_width=1.):
-        self.bc_sigma = None
-        self.bc_amp = None
-        self.standard_deviations=4
-        self.z_specular = None
-        self.counts_total = None
+        
         super().__init__(data_directory, det_dist, angular_range, beam_width)
 
-    def save(self, directory: Path):
-        np.save(directory / "z_motor.npy", self.z_motor)
-        np.save(directory / "z_pos.npy", self.z)
-        np.save(directory / "specular_data.npy", self.intensity_specular)
+    def get_type(self):
+        return "z"
 
-    def specular_fit(self, z_motor, min_counts, max_counts, z_lo, z_hi, sigma_lo, sigma_hi):
-        return 0.5 * (max_counts - min_counts) * (erf((z_motor - z_lo) / sigma_lo) - erf((z_motor - z_hi) / sigma_hi)) + min_counts
+    def specular_fit(self, z_motor, max_counts, z_lo, z_hi, sigma_lo, sigma_hi):
+        return 0.5 * max_counts * (erf((z_motor - z_lo) / sigma_lo) - erf((z_motor - z_hi) / sigma_hi))
     
-    def occlusion_fit_single(self, z_motor, min_counts, max_counts, z0, sigma):
-        return 0.5 * (max_counts + min_counts - (max_counts - min_counts) * erf((z_motor - z0) / sigma))
+    def occlusion_fit_single(self, z_motor, max_counts, z0, sigma):
+        return 0.5 * (max_counts - max_counts * erf((z_motor - z0) / sigma))
 
-    def occlusion_fit_double(self, z_motor, min_counts, max_counts, z_lo, z_hi, sigma_lo, sigma_hi):
-        return 0.5 * (max_counts - min_counts) * (erf((z_motor - z_hi) / sigma_hi) - erf((z_motor - z_lo) / sigma_lo)) + max_counts
+    def occlusion_fit_double(self, z_motor, max_counts, z_lo, z_hi, sigma_lo, sigma_hi):
+        return 0.5 * max_counts * (erf((z_motor - z_hi) / sigma_hi) - erf((z_motor - z_lo) / sigma_lo)) + max_counts
 
     def where_half(self, func, params):
-        def where_is(z_0, count_half, params):
-            return func(z_0, *params) - 0.5 * count_half
-        
-        counts_half = 0.5 * params[1]
+        def where_is(z_0, params):
+            return func(z_0, *params) - 0.5 * params[0]
 
-        root = root_scalar(where_is, args=(counts_half, params), method="newton", x0=params[2])
+        root = root_scalar(where_is, args=(params,), method="newton", x0=params[1])
 
         print(f"Found where counts are half-max at: {root.root}")
 
@@ -419,9 +436,9 @@ class SpecularZ(SpecularOmega):
             axis=0
         )
 
-        self.total_fit, pcov_total = curve_fit(self.occlusion_fit_single, self.z_motor, self.counts_total, p0=(0, 1e6, .5, 1))
-        self.dbeam_fit, pcov_dbeam = curve_fit(self.occlusion_fit_single, self.z_motor, self.z_primary, p0=(0, 1e6, .5, 1))
-        self.specz_fit, pcov_specz = curve_fit(self.specular_fit, self.z_motor, self.z_specular, p0=(0, 1e6, .5, .6, 1, 1))
+        self.total_fit, pcov_total = curve_fit(self.occlusion_fit_single, self.z_motor, self.counts_total, p0=(1e6, .5, .01))
+        self.dbeam_fit, pcov_dbeam = curve_fit(self.occlusion_fit_single, self.z_motor, self.z_primary, p0=(1e6, .5, .01))
+        self.specz_fit, pcov_specz = curve_fit(self.specular_fit, self.z_motor, self.z_specular, p0=(1e6, .4, .7, .01, .01))
 
         self.perr_total = np.sqrt(np.diag(pcov_total))
         self.perr_dbeam = np.sqrt(np.diag(pcov_dbeam))
@@ -431,32 +448,32 @@ class SpecularZ(SpecularOmega):
         self.z_half_dbeam = self.where_half(self.occlusion_fit_single, self.dbeam_fit)
     
         print("Fit results:")
-        fit_names = ["min", "max", "z\u2080", "\u03C3\u2080"]
-        unit_names = ["counts", "counts", "mm", "mm"]
+        fit_names = ["max", "z\u2080", "\u03C3\u2080"]
+        unit_names = ["counts", "mm", "mm"]
         print("  Total counts:")
         for name, fit_res, err, unit in zip(fit_names, self.total_fit, self.perr_total, unit_names):
-            print(f"    {name} = ({fit_res} \u00B1 {err}) {unit}")
+            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
         print("  Primary beam counts:")
         for name, fit_res, err, unit in zip(fit_names, self.dbeam_fit, self.perr_dbeam, unit_names):
-            print(f"    {name} = ({fit_res} \u00B1 {err}) {unit}")
-        fit_names = ["min", "max", "z\u2081", "z\u2082", "\u03C3\u2081", "\u03C3\u2082"]
+            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
+        fit_names = ["max", "z\u2081", "z\u2082", "\u03C3\u2081", "\u03C3\u2082"]
         unit_names = ["counts", "counts", "mm", "mm", "mm", "mm"]
         print("  Specular counts:")
         for name, fit_res, err, unit in zip(fit_names, self.specz_fit, self.perr_specz, unit_names):
-            print(f"    {name} = ({fit_res} \u00B1 {err}) {unit}")
+            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
 
         self.plot()
     
-    def plot(self):
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(8,6))
+    def plot(self, figsize=(10, 7)):
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=figsize)
         ax1.set_facecolor('k')
 
-        z_m_fit = np.linspace(self.z_motor.min(), self.z_motor_max(), 500)
+        z_m_fit = np.linspace(self.z_motor.min(), self.z_motor.max(), 500)
 
         # z = np.arange(intensity_x_total.shape[1])[::-1] * self.pixel_size
         ax1.set_ylabel("$z$ (mm)", fontsize=12)
         ax1.set_ylabel("$z$-motor (mm)", fontsize=12)
-        ax1.set_xticks(list(self.z_motor))
+        #ax1.set_xticks(list(self.z_motor))
         color_map = ax1.pcolormesh(self.z_motor, self.z, self.intensity_specular.T,
                                    norm=LogNorm(1, self.intensity_specular.max()), cmap="plasma")
         color_bar = fig.colorbar(color_map, ax=ax1)
@@ -495,12 +512,13 @@ class SpecularZ(SpecularOmega):
         ax4.set_title("Direct Beam", fontsize=12)
 
         annotation_texts = (
-            f"$z_0 = ({self.total_fit[2]:.3f} \\pm {self.perr_total[2]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_total})$ mm",
-            f"$z_2 = ({self.specz_fit[3]:.3f} \\pm {self.perr_specz[3]:.3f})$ mm\n$z_1 = ({self.specz_fit[2]:.3f} \\pm {self.perr_specz[2]:.3f})$ mm",
-            f"$z_0 = ({self.dbeam_fit[2]:.3f} \\pm {self.perr_dbeam[2]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_dbeam})$ mm",
+            f"$z_0 = ({self.total_fit[1]:.3f} \\pm {self.perr_total[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_total:.3f})$ mm",
+            f"$z_2 = ({self.specz_fit[1]:.3f} \\pm {self.perr_specz[1]:.3f})$ mm\n$z_1 = ({self.specz_fit[2]:.3f} \\pm {self.perr_specz[2]:.3f})$ mm\n$z_{{ave}}={0.5*(self.specz_fit[1]+self.specz_fit[2]):.3f}$ mm",
+            f"$z_0 = ({self.dbeam_fit[1]:.3f} \\pm {self.perr_dbeam[1]:.3f})$ mm\n$z_{{HM}} = ({self.z_half_dbeam:.3f})$ mm",
         )
 
-        for ax, ann in zip((ax2, ax3, ax4), annotation_texts):
+        locs = ["lower left", "lower center", "lower left"]
+        for ax, ann, loc in zip((ax2, ax3, ax4), annotation_texts, locs):
             ax.tick_params(axis='both', which='both', direction='in', right=True, top=True)
             ax.set_xlabel("$z$-motor (mm)", fontsize=12)
             ax.set_ylabel("Counts", fontsize=12)
@@ -509,8 +527,13 @@ class SpecularZ(SpecularOmega):
             ax.yaxis.set_minor_locator(matplotlib.ticker.AutoMinorLocator())
             # ax.legend(title="pixel")
             
-            ax.text(self.z_motor.min(), 0.5 * self.specz_fit[1], ann, transform=ax.transAxes, fontsize=12,
-                    verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+            anchored_text = matplotlib.offsetbox.AnchoredText(ann, loc=loc, prop=dict(size=12), frameon=True)
+            anchored_text.patch.set_boxstyle("round,pad=0.5")
+            anchored_text.patch.set_facecolor('white')
+            anchored_text.patch.set_alpha(0.8)
+            ax.add_artist(anchored_text)
+            #ax.text(self.z_motor.min(), 0.5 * self.specz_fit[1], ann, transform=ax.transAxes, fontsize=12,
+            #        verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
         fig.suptitle("Specular z-scan")
         fig.tight_layout()
 
