@@ -438,31 +438,34 @@ class SpecularZ(SpecularOmega):
             axis=0
         )
 
-        self.total_fit, pcov_total = curve_fit(self.occlusion_fit_single, self.z_motor, self.counts_total, p0=(1e6, .5, .01))
-        self.dbeam_fit, pcov_dbeam = curve_fit(self.occlusion_fit_single, self.z_motor, self.z_primary, p0=(1e6, .5, .01))
-        self.specz_fit, pcov_specz = curve_fit(self.specular_fit, self.z_motor, self.z_specular, p0=(1e6, .4, .7, .01, .01))
+        try:
+            self.total_fit, pcov_total = curve_fit(self.occlusion_fit_single, self.z_motor, self.counts_total, p0=(1e6, .5, .01))
+            self.dbeam_fit, pcov_dbeam = curve_fit(self.occlusion_fit_single, self.z_motor, self.z_primary, p0=(1e6, .5, .01))
+            self.specz_fit, pcov_specz = curve_fit(self.specular_fit, self.z_motor, self.z_specular, p0=(1e6, .4, .7, .01, .01))
 
-        self.perr_total = np.sqrt(np.diag(pcov_total))
-        self.perr_dbeam = np.sqrt(np.diag(pcov_dbeam))
-        self.perr_specz = np.sqrt(np.diag(pcov_specz))
+            self.perr_total = np.sqrt(np.diag(pcov_total))
+            self.perr_dbeam = np.sqrt(np.diag(pcov_dbeam))
+            self.perr_specz = np.sqrt(np.diag(pcov_specz))
 
-        self.z_half_total = self.where_half(self.occlusion_fit_single, self.total_fit)
-        self.z_half_dbeam = self.where_half(self.occlusion_fit_single, self.dbeam_fit)
+            self.z_half_total = self.where_half(self.occlusion_fit_single, self.total_fit)
+            self.z_half_dbeam = self.where_half(self.occlusion_fit_single, self.dbeam_fit)
     
-        print("Fit results:")
-        fit_names = ["max", "z\u2080", "\u03C3\u2080"]
-        unit_names = ["counts", "mm", "mm"]
-        print("  Total counts:")
-        for name, fit_res, err, unit in zip(fit_names, self.total_fit, self.perr_total, unit_names):
-            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
-        print("  Primary beam counts:")
-        for name, fit_res, err, unit in zip(fit_names, self.dbeam_fit, self.perr_dbeam, unit_names):
-            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
-        fit_names = ["max", "z\u2081", "z\u2082", "\u03C3\u2081", "\u03C3\u2082"]
-        unit_names = ["counts", "counts", "mm", "mm", "mm", "mm"]
-        print("  Specular counts:")
-        for name, fit_res, err, unit in zip(fit_names, self.specz_fit, self.perr_specz, unit_names):
-            print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
+            print("Fit results:")
+            fit_names = ["max", "z\u2080", "\u03C3\u2080"]
+            unit_names = ["counts", "mm", "mm"]
+            print("  Total counts:")
+            for name, fit_res, err, unit in zip(fit_names, self.total_fit, self.perr_total, unit_names):
+                print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
+            print("  Primary beam counts:")
+            for name, fit_res, err, unit in zip(fit_names, self.dbeam_fit, self.perr_dbeam, unit_names):
+                print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
+            fit_names = ["max", "z\u2081", "z\u2082", "\u03C3\u2081", "\u03C3\u2082"]
+            unit_names = ["counts", "counts", "mm", "mm", "mm", "mm"]
+            print("  Specular counts:")
+            for name, fit_res, err, unit in zip(fit_names, self.specz_fit, self.perr_specz, unit_names):
+                print(f"    {name} = ({fit_res:.5f} \u00B1 {err:.5f}) {unit}")
+        except RuntimeError:
+            print("failed to fit")
 
         self.plot()
     
