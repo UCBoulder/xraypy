@@ -29,16 +29,16 @@ with open(package.directory / "config.yaml", "w") as f:
 
 setup(
     name="XRDpy",
-    version='3.07',
+    version='3.08',
     packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
     entry_points = {
         "console_scripts": [
             "STITCH=XRDpy.main:stitch",
-            "GI-scan=XRDpy.main:make_scan",
-            "GI-move=XRDpy.main:move",
-            "GI-plot=XRDpy.main:plot",
+            "SCAN=XRDpy.main:make_scan",
+            "MOVE=XRDpy.main:move",
+            "PLOT=XRDpy.main:plot",
         ],
     },
     # data_files=[(str(install_dir), [str(Path("files") / "1 3 detector.h5")])],
