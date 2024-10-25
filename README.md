@@ -60,7 +60,7 @@ These optional flags allow you to add more information the .edf file header or a
 - `--tif` or `-T`
     - If you use this flag, .tif files will also be generated.
 
-## `GI-scan`
+## `SCAN`
 
 Running this will produce a macro in Documents/XRDpy/Macros to scan om or z in order to tune the angle of incidence for thin film studies. The scan takes approximately 1 minute for every 10 angles (6 seconds / angle).
 
@@ -89,11 +89,11 @@ Note: Macro names include date and hour, so if you save two macros in the same h
 - `--clear` or `-C`
     - Clear out macro files built up in macro folder.
 
-e.g. `GI-scan om 0 1 .01`
+e.g. `SCAN om 0 1 .01`
 
-## `GI-move`
+## `MOVE`
 
-All the TIFFs produced by `GI-scan` will be saved in the DATA directory, to avoid clutter, run this command to move them to a personal directory: Documents/XRDpy/\<user-name\>. It is recommended to use your identikey (i.e. abcd1234) as your user-name.
+All the TIFFs produced by `SCAN` will be saved in the DATA directory, to avoid clutter, run this command to move them to a personal directory: Documents/XRDpy/\<user-name\>. It is recommended to use your identikey (i.e. abcd1234) as your user-name.
 
 ### Arguments
 - Motor that was scanned
@@ -105,13 +105,13 @@ All the TIFFs produced by `GI-scan` will be saved in the DATA directory, to avoi
     - If doing an om-scan, specify `wm z`
     - If doing a z-scan, specify `wm om`
 
-e.g. `GI-scan om abcd1234`
+e.g. `MOVE om abcd1234 [OTHER_POSITION]`
 
 ### Flags
 - `--append` or `-A`
     - By default, a new directory will be made in your personal directory every time you use `XRD-imove`, but using this flag will move the data to the last directory created in the same day. This is for if you need to append an om scan with more data.
 
-## `GI-plot`
+## `PLOT`
 
 This will find the latest om scan you have performed in your personal directory and plot the data.
 
@@ -119,7 +119,7 @@ This will find the latest om scan you have performed in your personal directory 
 - User-name
     - This is where the program will look for your latest scan
 
-e.g. `GI-plot PATH_TO_DATA -C .25,.19,.19`
+e.g. `PLOT PATH_TO_DATA -C .25,.19,.19`
 
 ### Flags
 - `--animate` or `-A`
