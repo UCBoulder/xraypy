@@ -30,7 +30,7 @@ class StitchParse:
         self.parser.add_argument("-I", "--incident", help="incident angle in degrees (for GIXS)")
         self.parser.add_argument("-O", "--om", help="omega motor position in degrees (for GIXS)")
         self.parser.add_argument("-Z", "--z", help="z motor position in mm (for GIXS)")
-        self.parser.add_argument("-D", "--dist", help="sample detector distance")
+        self.parser.add_argument("-D", "--dist", help="sample detector distance in meters")
         self.parser.add_argument("-T", "--tif", action="store_true")
         self.parser.add_argument("-J", "--jupyter", action="store_true")
 
@@ -76,7 +76,7 @@ class StitchParse:
 
         if self.args.jupyter:
             if "GI" in self.args.experiment.upper() or self.args.incident is not None or self.args.om is not None:
-                notebooks_to_copy = ("transform-GIWAXS.ipynb", "specular-analysis.ipynb")
+                notebooks_to_copy = ("transform-GIWAXS.ipynb")
             else:
                 notebooks_to_copy = ("reduce_WAXS.ipynb",)
             for notebook in notebooks_to_copy:
@@ -125,32 +125,21 @@ def plot():
         epilog="author: Teddy Tortorici <edward.tortorici@colorado.edu>"
     )
     parser.add_argument("dir", help="Specify a specific directory, or CWD for current working directory")
-    # parser.add_argument("user", help="This will be the name of the directory the files will be looked for")
     parser.add_argument("-A", "--animate", help="animate: specify frame-rate in FPS")
     parser.add_argument("-T", "--title")
-    parser.add_argument("-M", "--mod", help="modify fit or plot (z0 adjust for om or change std for z)")
+    parser.add_argument("-P", "--zposition", help="move the z-position of the sample relative to the beam center")
     parser.add_argument("-C", "--crit", help="add critical angles (comma separated)")
-    parser.add_argument("-Z", "--z", action="store_true", help="change to a z-specular scan")
-    # parser.add_argument("-D", "--dir", help="Specify a specific directory, or CWD for current working directory")
+    parser.add_argument("-B", "--beamheight", help="change where the beam cutoff is, in standard deviations.")
     parser.add_argument("-R", "--range", help="set angular range in degrees")
-    parser.add_argument("-B", "--beamwidth", help="set beam width in mm")
+    parser.add_argument("-W", "--beamwidth", help="set beam width in mm")
     parser.add_argument("-S", "--save", help="save the plot at a certain DPI")
+    parser.add_argument("-N", "--name", help="Title plots")
     args = parser.parse_args()
 
-    # if args.z:
-    #     spec_type = "z"
-    # else:
-    #     spec_type = "om"
-    #usr_dir = package.directory / args.user / "{}_scans".format(spec_type)
-    #date = datetime.now()
-    #date_name = f"{date.year}{date.month:02d}{date.day:02d}"
-    #directory = usr_dir / date_name
-
-    if args.dir is not None:
-        if args.dir.upper() == "CWD":
-            directory = Path.cwd()
-        else:
-            directory = Path(args.dir)
+    if args.dir.lower() == "cwd" or args.dir.lower() == "here":
+        directory = Path.cwd()
+    else:
+        directory = Path(args.dir)
     
     if args.range is None:
         angular_range = 1.5
@@ -161,19 +150,39 @@ def plot():
     else:
         beamwidth = args.beamwidth
 
-    if args.z:
-        if args.mod is None:
-            std = 4.
-        else:
-            std = float(args.mod)
-        spec = specular.SpecularZ(directory, angular_range=angular_range, beam_width=beamwidth, standard_deviations=std)
+    if args.beamheight:
+        std = args.beamheight
     else:
-        spec = specular.SpecularOmega(directory, anglular_range=angular_range, beam_width=beamwidth)
+        std = 3
+
+    directory_name_split = directory.name.split("_")
+    scan_type = directory_name_split[1]
+    other_position = float(directory_name_split[2].split("-")[1])
+    if scan_type == "om-scan":
+        other_unit = "um"
+    elif scan_type == "z-scan":
+        other_unit = "millidegree"
+    else:
+        other_unit = ""
+    
+    plot_name = f"{scan_type}_at-{other_position}-{other_unit}"
+
+    spec = specular.SpecularScan(
+        directory,
+        anglular_range=angular_range,
+        beam_width=beamwidth,
+        standard_deviations=std,
+        plot_name=plot_name,
+        plot_dpi=args.save,
+        plot_title=args.name,
+    )
+
+    if spec.type == "om":
         if args.crit is None:
             crit = None
         else:
             crit = [float(c) for c in args.crit.split(",")]
-        if args.mod is not None:
+        if args.zposition:
             spec.fit(z0=float(args.mod))
         spec.plot(critical_angle=crit)
 
@@ -203,11 +212,9 @@ def move():
     if args.type.lower() not in ["om", "z", "omr", "zr"]:
         raise ValueError("Type must be 'om', 'z', 'omr', or 'zr'.")
     if "om" in args.type.lower():
-        other = "z"
-        other_unit = "mm"
+        other_unit = "um"
     else:
-        other = "om"
-        other_unit = "degree"
+        other_unit = "mdeg"
     
     with open(package.directory / "config.yaml") as f:
         DATA = Path(yaml.safe_load(f)["data_path"])
@@ -216,7 +223,7 @@ def move():
     if not usr_dir.exists():
         usr_dir.mkdir(parents=True, exist_ok=True)
     
-    directory_name = f"{date.year}-{date.month:02d}-{date.day:02d}_{args.type.lower()}-scan_{other}-{other_unit}"
+    directory_name = f"{date.year}-{date.month:02d}-{date.day:02d}_{args.type.lower()}-scan_at-{args.other_position * 1000}-{other_unit}"
     
     data_path = usr_dir / directory_name
     

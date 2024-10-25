@@ -1,6 +1,7 @@
 import numpy as np
 import yaml
 from pathlib import Path
+from scipy import ndimage
 import fabio
 from pyFAI.detectors import Eiger1M
 import matplotlib.pylab as plt
@@ -75,6 +76,9 @@ class Detector(Eiger1M):
                 mask[row_start_quad:(row_start_quad + 4), col_start_quad:(col_start_quad + 4)] = 1
         return mask
     
+    def calc_mask2(self, image) -> np.ndarray:
+        return np.logical_or(self.find_zingers(image), self.cacl_mask())
+    
     @classmethod
     def get_size(cls) -> tuple:
         return (cls.ROWS, cls.COLS)
@@ -86,6 +90,23 @@ class Detector(Eiger1M):
     @classmethod
     def get_columns(cls) -> int:
         return cls.COLS
+    
+    @staticmethod
+    def find_zingers(image: np.ndarray, cut_off: float=5, gaussian_standard_deviation: float=2) -> np.ndarray:
+        """
+        Finds abnormally hot pixels by applying a gaussian filter to smooth the image and locate pixels and returns a mask for them
+        :params image: image to find zingers in
+        :params cut_off: 
+        :params gaussian_standard_deviations:
+        :return: return mask of zinger locations
+        """
+        smoothed_img = ndimage.gaussian_filter(image, gaussian_standard_deviation)
+        dif_img = image - smoothed_img
+
+        zinger_chart = dif_img / (smoothed_img + 1)
+        anomalies = zinger_chart > cut_off
+        print(f'Found {np.sum(anomalies)} zingers')
+        return anomalies.astype(bool)
         
 
 class Stitcher:
