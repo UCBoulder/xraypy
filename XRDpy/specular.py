@@ -103,6 +103,32 @@ class SpecularScan:
             del(self.file_list[direct_beam_file_index])
             motor, self.intensity_data = self.load()
 
+            print("")
+            print("CLOSE THE WINDOW TO CONTINUE")
+            plt.show()
+            response = None
+            while response not in ["yes", "no", "y", "n", ""]:
+                response = input(">>> Was the beam center found? (Y/n): ").lower()
+            if "n" in response:
+                x_pos = None
+                while x_pos not in ["left", "right", "center", "l", "r", "c", ""]:
+                    x_pos = input(">>> Is beam closer to left, center, or right (l/C/r)").lower()
+                if x_pos == "l":
+                    x_pos = "left"
+                elif x_pos == "c" or x_pos == "":
+                    x_pos = "center"
+                elif x_pos == "r":
+                    x_pos = "right"
+                y_pos = None
+                while y_pos not in ["upper", "right", "lower", "l", "u", "c", ""]:
+                    y_pos = input(">>> Is beam closer to upper, center, or lower (u/c/L)").lower()
+                if y_pos == "l" or "":
+                    y_pos = "lower"
+                elif y_pos == "c":
+                    y_pos = "center"
+                elif y_pos == "u":
+                    y_pos = "upper"
+            
         if self.type == "om":
             self.angles = motor
         elif self.type == "z":
@@ -137,11 +163,26 @@ class SpecularScan:
         print("Did not find a direct beam file")
         return None
     
-    def find_beam_center(self, direct_beam_index_file: int) -> tuple:
+    def find_beam_center(self, direct_beam_index_file: int, x_pos="center", y_pos="lower") -> tuple:
+        if x_pos not in ["left", "center", "right"] or y_pos not in ["upper", "center", "lower"]:
+            raise ValueError("x_pos must be 'left', 'center', or 'right', and y_pos must be 'upper', 'center', or 'lower'.")
         intensity_db = self.load_image(self.file_list[direct_beam_index_file])
         rows = self.detector.shape[0]
         columns = self.detector.shape[1]
         
+        if x_pos == "left":
+            x_pos = 0.25 * columns
+        elif x_pos == "center":
+            x_pos = 0.5 * columns
+        elif x_pos == "right":
+            x_pos = 0.75 * columns
+        if y_pos == "upper":
+            y_pos = 0.25 * columns
+        elif y_pos == "center":
+            y_pos = 0.5 * columns
+        elif y_pos == "lower":
+            y_pos = 0.75 * columns
+            
         px_x = np.arange(columns)
         db_x = np.sum(intensity_db, axis=0)
         px_y = np.arange(rows)
@@ -150,10 +191,10 @@ class SpecularScan:
             arg = (x - x0) / sigma
             return amplitude * np.exp(-0.5 * arg * arg)
         (x0, sigma_x, a_x), _, = curve_fit(gaussian, px_x, db_x,
-                                           p0=(0.5 * columns, 100, db_x.max()),
+                                           p0=(x_pos, 100, db_x.max()),
                                            nan_policy="omit")
         (y0, sigma_y, a_y), _ = curve_fit(gaussian, px_y, db_y,
-                                           p0=(0.75 * rows, 100, db_y.max()),
+                                           p0=(y_pos, 100, db_y.max()),
                                            nan_policy="omit")
         beam_center = (y0, x0)
         self.bc_sigma = abs(sigma_y * self.detector.get_pixel1() * 1e3)
@@ -210,13 +251,6 @@ class SpecularScan:
         ax1.axhline(y0, color='r', linewidth=0.5)
         fig.colorbar(pos, ax=ax1)
         fig.tight_layout()
-
-        print("")
-        print("CLOSE THE WINDOW TO CONTINUE")
-        plt.show()
-        response = input("XRDpy>>> Was the beam center found? (Y/n): ")
-        if not response:
-            response = "y"
         self.save_fig(fig)
         return beam_center
     
