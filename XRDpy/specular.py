@@ -210,6 +210,13 @@ class SpecularScan:
         ax1.axhline(y0, color='r', linewidth=0.5)
         fig.colorbar(pos, ax=ax1)
         fig.tight_layout()
+
+        print("")
+        print("CLOSE THE WINDOW TO CONTINUE")
+        plt.show()
+        response = input("XRDpy>>> Was the beam center found? (Y/n): ")
+        if not response:
+            response = "y"
         self.save_fig(fig)
         return beam_center
     
@@ -290,6 +297,17 @@ class SpecularScan:
             self.fit_z(standard_deviations)
         else:
             raise AttributeError("Scan type was not established.")
+        
+    def check_goodness_of_om_fit(self):
+        # func = self.specular_om_fit
+        # x = self.where_max_angle
+        # y = self.z_valid
+        # p = (self.omega0, self.det_dist_fit)
+        # err = self.perr
+        fitted_curve = self.specular_om_fit(self.where_max_angle, self.omega0, self.det_dist_fit)
+        # fitted_err = self.specular_om_error(self.where_max_angle, self.omega0, self.det_dist_fit, *self.perr)
+        difference = np.abs(self.z_valid - fitted_curve)
+
 
     def fit_om(self, z0=None, max_angle=1, pixel_cut=None, standard_deviations=None):
         self.max_angle = max_angle
@@ -390,6 +408,17 @@ class SpecularScan:
 
     def specular_om_fit(self, omega, omega0, det_dist):
         return det_dist * np.tan(2. * np.radians(omega - omega0)) + self.z0
+    
+    @staticmethod
+    def specular_om_error(omega, omega0, det_dist, omega_err, dist_err):
+        omega_center = omega - omega0
+        dist_deriv = np.tan(2. * omega_center)
+        sec_2omega = 1. / np.cos(2. * omega_center)
+        omega_deriv = 2. * det_dist * sec_2omega * sec_2omega
+        dist_term = dist_err * dist_deriv
+        omega_term = omega_err * omega_deriv
+        return np.sqrt(dist_term * dist_term + omega_term * omega_term)
+
     
     def specular_z_fit(self, z_motor, max_counts, z_lo, z_hi, sigma_lo, sigma_hi):
         return 0.5 * max_counts * (erf((z_motor - z_lo) / sigma_lo) - erf((z_motor - z_hi) / sigma_hi))

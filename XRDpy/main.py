@@ -130,10 +130,12 @@ def plot():
     parser.add_argument("-P", "--zposition", help="move the z-position of the sample relative to the beam center")
     parser.add_argument("-C", "--crit", help="add critical angles (comma separated)")
     parser.add_argument("-B", "--beamheight", help="change where the beam cutoff is, in standard deviations.")
+    parser.add_argument("-D", "--dist", help="Guess at detector distance in m. Default is .15 m")
     parser.add_argument("-R", "--range", help="set angular range in degrees")
     parser.add_argument("-W", "--beamwidth", help="set beam width in mm")
     parser.add_argument("-S", "--save", help="save the plot at a certain DPI")
     parser.add_argument("-N", "--name", help="Title plots")
+    
     args = parser.parse_args()
 
     if args.dir.lower() == "cwd" or args.dir.lower() == "here":
@@ -167,8 +169,14 @@ def plot():
     
     plot_name = f"{scan_type}_at-{other_position}-{other_unit}"
 
+    if args.dist is None:
+        dist = 150
+    else:
+        dist = float(args.dist) * 1e3
+
     spec = specular.SpecularScan(
         directory,
+        det_dist=dist,
         anglular_range=angular_range,
         beam_width=beamwidth,
         standard_deviations=std,
