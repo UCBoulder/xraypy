@@ -77,7 +77,7 @@ class Nudger:
 
         x_pos = poni2 / self.ai.pixel2 - 0.5
         y_pos = self.data.shape[0] - poni1 / self.ai.pixel1 + 0.5
-        radii = self.ai.dist / self.ai.pixel1 * np.tan(2. * np.arcsin(0.5 * self.ai.wavelength / np.array(self.radii)))
+        radii = self.ai.dist / self.ai.pixel1 * np.tan(2. * np.arcsin(0.5 * self.ai.wavelength / np.array(self.radii) * 1e10))
 
         self.ax.scatter(x_pos, y_pos, s=30, color="r")
         for r in radii:
