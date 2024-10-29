@@ -127,12 +127,14 @@ def plot():
     parser.add_argument("dir", help="Specify a specific directory, or CWD for current working directory")
     parser.add_argument("-A", "--animate", help="animate: specify frame-rate in FPS")
     parser.add_argument("-T", "--title")
-    parser.add_argument("-P", "--zposition", help="move the z-position of the sample relative to the beam center")
+    parser.add_argument("-Z", "--zposition", help="move the z-position of the sample relative to the beam center")
     parser.add_argument("-C", "--crit", help="add critical angles (comma separated)")
+    parser.add_argument("-L", "--beamloc", help="Choose which ninth in a 3x3 grid, the beam is in: (UL, UC, UR, CL, CC, CR, LR, LC, LL)")
     parser.add_argument("-B", "--beamheight", help="change where the beam cutoff is, in standard deviations.")
-    parser.add_argument("-D", "--dist", help="Guess at detector distance in m. Default is .15 m")
-    parser.add_argument("-R", "--range", help="set angular range in degrees")
     parser.add_argument("-W", "--beamwidth", help="set beam width in mm")
+    parser.add_argument("-D", "--dist", help="Guess at detector distance in m. Default is .15 m")
+    parser.add_argument("-X", "--remove", help="Remove a number of points from the specular fit (will remove the furthest ones from the fit)")
+    parser.add_argument("-R", "--range", help="set angular range in degrees")
     parser.add_argument("-S", "--save", help="save the plot at a certain DPI")
     parser.add_argument("-N", "--name", help="Title plots")
     
@@ -144,18 +146,16 @@ def plot():
         directory = Path(args.dir)
     
     if args.range is None:
-        angular_range = 1.5
-    else:
-        angular_range = args.range
+        args.range = 1.5
+    args.range = float(args.range)
+    
     if args.beamwidth is None:
-        beamwidth = 1.
-    else:
-        beamwidth = args.beamwidth
+        args.beamwidth = 1.
+    args.beamwidth = float(args.beamwidth)
 
-    if args.beamheight:
-        std = args.beamheight
-    else:
-        std = 3
+    if args.beamheight is None:
+        args.beamheight = 3
+    args.beamheight = float(args.beamheight) # in standard devations
 
     directory_name_split = directory.name.split("_")
     scan_type = directory_name_split[1]
@@ -170,17 +170,26 @@ def plot():
     plot_name = f"{scan_type}_at-{other_position}-{other_unit}"
 
     if args.dist is None:
-        dist = 150
-    else:
-        dist = float(args.dist) * 1e3
+        args.dist = .150
+    args.dist = float(args.dist) * 1e3
+
+    if args.beamloc is None:
+        args.beamloc = "LC"
+    elif args.beamloc not in ["UL", "UC", "UR", "CL", "CC", "CR", "LR", "LC", "LL"]:
+        raise ValueError("Beam locations options are: UL, UC, UR, CL, CC, CR, LR, LC, LL\nFor Upper, Center, Lower; Left, Center, Right.")
+
+    if args.remove is not None:
+        args.remove = int(args.remove)
 
     spec = specular.SpecularScan(
         directory,
-        det_dist=dist,
-        anglular_range=angular_range,
-        beam_width=beamwidth,
-        standard_deviations=std,
+        det_dist=args.dist,
+        anglular_range=args.range,
+        beam_width=args.beamwidth,
+        standard_deviations=args.beamheight,
         plot_name=plot_name,
+        data_remove=args.remove,
+        beam_location=args.beamloc,
         plot_dpi=args.save,
         plot_title=args.name,
     )
@@ -191,7 +200,8 @@ def plot():
         else:
             crit = [float(c) for c in args.crit.split(",")]
         if args.zposition:
-            spec.fit(z0=float(args.mod))
+            spec.fit(z0=float(args.zposition))
+        spec.plot_om()
         spec.plot(critical_angle=crit)
 
     if args.animate is not None:

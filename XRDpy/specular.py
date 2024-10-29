@@ -18,13 +18,15 @@ class SpecularScan:
 
     MAX_INT = (1 << 32) - 1
 
-    def __init__(self, data_directory: Path, det_dist: float=150, anglular_range: float=1.5, beam_width: float=1,
-                 standard_deviations: float=4, plot_name: str = "", plot_dpi: int = None, plot_title: str = None):
+    def __init__(self, data_directory: Path, det_dist: float=150, anglular_range: float=1.5, beam_width: float=1, standard_deviations: float=4,
+                 data_remove: int = None, beam_location: str = "LC", plot_name: str = "", plot_dpi: int = None, plot_title: str = None):
         self.plot_name = plot_name
         if plot_dpi is None:
             self.save_plots = False
         else:
             self.save_plots = True
+        self.data_remove = data_remove
+        self.beam_loc = beam_location.upper()
         self.plot_title = plot_title
         self.plot_dpi = plot_dpi
         self.type = None
@@ -98,36 +100,12 @@ class SpecularScan:
             self.bc_amp = a_y
             self.angles, self.intensity_data = self.load()
         else:
-            self.beam_center = self.find_beam_center(direct_beam_file_index)
+            x_pos = self.beam_loc[1]
+            y_pos = self.beam_loc[0]
+            self.beam_center = self.find_beam_center(direct_beam_file_index, x_pos, y_pos)
             print("Direct beam is at ({}, {})".format(*self.beam_center))
             del(self.file_list[direct_beam_file_index])
-            motor, self.intensity_data = self.load()
-
-            print("")
-            print("CLOSE THE WINDOW TO CONTINUE")
-            plt.show()
-            response = None
-            while response not in ["yes", "no", "y", "n", ""]:
-                response = input(">>> Was the beam center found? (Y/n): ").lower()
-            if "n" in response:
-                x_pos = None
-                while x_pos not in ["left", "right", "center", "l", "r", "c", ""]:
-                    x_pos = input(">>> Is beam closer to left, center, or right (l/C/r)").lower()
-                if x_pos == "l":
-                    x_pos = "left"
-                elif x_pos == "c" or x_pos == "":
-                    x_pos = "center"
-                elif x_pos == "r":
-                    x_pos = "right"
-                y_pos = None
-                while y_pos not in ["upper", "right", "lower", "l", "u", "c", ""]:
-                    y_pos = input(">>> Is beam closer to upper, center, or lower (u/c/L)").lower()
-                if y_pos == "l" or "":
-                    y_pos = "lower"
-                elif y_pos == "c":
-                    y_pos = "center"
-                elif y_pos == "u":
-                    y_pos = "upper"
+        motor, self.intensity_data = self.load()
             
         if self.type == "om":
             self.angles = motor
@@ -163,24 +141,24 @@ class SpecularScan:
         print("Did not find a direct beam file")
         return None
     
-    def find_beam_center(self, direct_beam_index_file: int, x_pos="center", y_pos="lower") -> tuple:
-        if x_pos not in ["left", "center", "right"] or y_pos not in ["upper", "center", "lower"]:
-            raise ValueError("x_pos must be 'left', 'center', or 'right', and y_pos must be 'upper', 'center', or 'lower'.")
+    def find_beam_center(self, direct_beam_index_file: int, x_pos="C", y_pos="L") -> tuple:
+        if x_pos not in ["L", "C", "R"] or y_pos not in ["U", "C", "L"]:
+            raise ValueError("x_pos must be 'L', 'C', or 'R', and y_pos must be 'U', 'C', or 'L'.")
         intensity_db = self.load_image(self.file_list[direct_beam_index_file])
         rows = self.detector.shape[0]
         columns = self.detector.shape[1]
         
-        if x_pos == "left":
+        if x_pos == "L":
             x_pos = 0.25 * columns
-        elif x_pos == "center":
+        elif x_pos == "C":
             x_pos = 0.5 * columns
-        elif x_pos == "right":
+        elif x_pos == "R":
             x_pos = 0.75 * columns
-        if y_pos == "upper":
+        if y_pos == "U":
             y_pos = 0.25 * columns
-        elif y_pos == "center":
+        elif y_pos == "C":
             y_pos = 0.5 * columns
-        elif y_pos == "lower":
+        elif y_pos == "L":
             y_pos = 0.75 * columns
             
         px_x = np.arange(columns)
@@ -327,23 +305,30 @@ class SpecularScan:
     def fit(self, z0=None, max_angle=1, pixel_cut=None, standard_deviations=None):
         if self.type == "om":
             self.fit_om(z0, max_angle, pixel_cut, standard_deviations)
+            
+            if self.data_remove:
+                self.refit_om()
+
         elif self.type == "z":
             self.fit_z(standard_deviations)
         else:
             raise AttributeError("Scan type was not established.")
         
-    def check_goodness_of_om_fit(self):
-        # func = self.specular_om_fit
-        # x = self.where_max_angle
-        # y = self.z_valid
-        # p = (self.omega0, self.det_dist_fit)
-        # err = self.perr
-        fitted_curve = self.specular_om_fit(self.where_max_angle, self.omega0, self.det_dist_fit)
-        # fitted_err = self.specular_om_error(self.where_max_angle, self.omega0, self.det_dist_fit, *self.perr)
-        difference = np.abs(self.z_valid - fitted_curve)
+    def refit_om(self):
+        difference = np.abs(self.z_valid - self.specular_om_fit(self.where_max_angle, self.omega0, self.det_dist_fit))
+        keep_inds = np.sort(np.argsort(difference)[:len(difference) - self.data_remove])
+        (self.omega0, self.det_dist_fit), pcov = curve_fit(self.specular_om_fit,
+                                                           self.where_max_angle[keep_inds],
+                                                           self.z_valid[keep_inds],
+                                                           p0=[0, self.det_dist_fit])
+        self.perr = np.sqrt(np.diag(pcov))
+        print("Fit results:")
+        print(f"    \u03C9\u2080 = ({self.omega0} \u00B1 {self.perr[0]})\u00B0")
+        print(f"    d\u209B = ({self.det_dist_fit} \u00B1 {self.perr[1]}) mm")
 
 
-    def fit_om(self, z0=None, max_angle=1, pixel_cut=None, standard_deviations=None):
+    def fit_om(self, z0: float=None, max_angle: float=1, pixel_cut: int=None,
+               standard_deviations: float=None):
         self.max_angle = max_angle
         if z0 is not None:
             self.z0 = z0
@@ -488,18 +473,13 @@ class SpecularScan:
     
     def plot(self, title="", critical_angle=None, horizon=False, det_dist=None, omega0=None):
         if self.type == "om":
-            self.plot_om(title, critical_angle, horizon, det_dist, omega0)
+            self.plot_specular(title, critical_angle, horizon, det_dist, omega0)
         elif self.type == "z":
             self.plot_z()
         else:
             raise AttributeError("Type of specular not determined")
-
-    def plot_om(self, title="", critical_angle=None, horizon=False, det_dist=None, omega0=None):
-        if det_dist is None:
-            det_dist = self.det_dist_fit
-        if omega0 is None:
-            omega0 = self.omega0
-
+        
+    def plot_om(self):
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 7))
         if self.plot_title:
             fig.suptitle(self.plot_title, fontsize=12)
@@ -542,6 +522,12 @@ class SpecularScan:
         
         self.save_fig(fig)
 
+    def plot_specular(self, title="", critical_angle=None, horizon=False, det_dist=None, omega0=None):
+        if det_dist is None:
+            det_dist = self.det_dist_fit
+        if omega0 is None:
+            omega0 = self.omega0
+
         """SPECULAR"""
 
         fig, ax = plt.subplots(1, 1, figsize=(10, 7))
@@ -575,7 +561,7 @@ class SpecularScan:
                     ax.plot(omega2, self.yoneda(omega2, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                     omega1 = np.linspace(omega0 + crit, self.angles[-1], 1000)
                     ax.plot(omega1, self.refraction_pos1(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
-                    omega1 = np.linspace(self.angles[0], omega0, 1000)
+                    omega1 = np.linspace(self.angles[0], omega0 + crit, 1000)
                     ax.plot(omega1, self.refraction_neg(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                     
                     # spec_at = self.specular_fit(crit + self.omega0, self.omega0, self.det_dist_fit)
