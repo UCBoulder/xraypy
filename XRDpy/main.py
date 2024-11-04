@@ -241,7 +241,8 @@ def move():
     if not usr_dir.exists():
         usr_dir.mkdir(parents=True, exist_ok=True)
     
-    directory_name = f"{date.year}-{date.month:02d}-{date.day:02d}_{args.type.lower()}-scan_at-{args.other_position * 1000}-{other_unit}"
+    other_pos_in_milli_units = round(float(args.other_position) * 1000)
+    directory_name = f"{date.year}-{date.month:02d}-{date.day:02d}_{args.type.lower()}-scan_at-{other_pos_in_milli_units}-{other_unit}"
     
     data_path = usr_dir / directory_name
     

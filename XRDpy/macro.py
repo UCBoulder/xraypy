@@ -73,7 +73,7 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
     print(f"Macro written with {num} images. Estimated time (min:sec): {minutes}:{seconds:02d}")
     print("Copy and paste the following into SAXS to run the macro:")
     print("do " + (directory / macroname).as_posix())
-    print(f"WARNING: will leave z at {final} degrees")
+    print(f"WARNING: will leave z at {final} mm")
     return None
 
 def create_rel_file(directory: Path, motor: str, below: float, above: float, step: float, tag: str = "") -> None:
