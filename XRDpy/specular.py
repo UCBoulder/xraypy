@@ -428,6 +428,12 @@ class SpecularScan:
     def specular_om_fit(self, omega, omega0, det_dist):
         return det_dist * np.tan(2. * np.radians(omega - omega0)) + self.z0
     
+    def specular_om_fit2(self, omega, omega0, det_dist, radial_offset, rotation_offset):
+        alpha = np.radians(omega - omega0)
+        vertical_offset = radial_offset * (np.sin(rotation_offset + alpha) - np.sin(rotation_offset))
+        return (det_dist - radial_offset * np.cos(rotation_offset + alpha)) * np.tan(2. * alpha) + vertical_offset
+
+    
     @staticmethod
     def specular_om_error(omega, omega0, det_dist, omega_err, dist_err):
         omega_center = omega - omega0
