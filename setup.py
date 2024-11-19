@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 import shutil
-import yaml
 import XRDpy.package_params as package
 
 detector_dir = package.directory / "Detectors"
@@ -24,12 +23,12 @@ for det_file in (Path("files") / "Detectors").glob("*.h5"):
 for notebook_file in (Path("files") / "Jupyter-Notebooks").glob("*.ipynb"):
     shutil.copyfile(notebook_file, notebooks_dir / notebook_file.name)
 
-with open(package.directory / "config.yaml", "w") as f:
-    yaml.dump({"data_path": package.data_path.as_posix()}, f)
+with open(package.directory / "config.txt", "w") as f:
+    f.write(package.data_path.as_posix())
 
 setup(
     name="XRDpy",
-    version='3.09',
+    version='3.11',
     packages=find_packages(include=['XRDpy', 'XRDpy.*']),
     scripts=["XRDpy/main.py",],
     py_modules=["XRDpy.transform"],
@@ -48,7 +47,7 @@ setup(
         "pyFAI",
         "fabio",
         "pyside6",
-        "pyopencl"
+        #"pyopencl"
     ],
     extras_require={
         "optional": [

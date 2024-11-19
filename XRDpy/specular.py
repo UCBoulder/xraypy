@@ -454,28 +454,21 @@ class SpecularScan:
     def yoneda(self, omega, omega0, det_dist, critical_angle):
         return det_dist * np.tan(np.radians(omega - omega0 + critical_angle)) + self.z0
     
-    def refraction_pos1(self, omega, omega0, det_dist, critical_angle):
+    def transmission(self, omega, omega0, det_dist, critical_angle):
         alpha = np.radians(omega - omega0)
         alpha_sq = alpha * alpha
         critical_angle = np.radians(critical_angle)
         crit_sq = critical_angle * critical_angle
-        refraction_angle_sq = (alpha_sq - crit_sq) / (1 - 0.5 * crit_sq * alpha_sq)
+        refraction_angle_sq = (alpha_sq - crit_sq) / (1 - 0.5 * crit_sq)
         return self.z0 + det_dist * np.tan(alpha - np.sqrt(refraction_angle_sq))
     
-    def refraction_pos2(self, omega, omega0, det_dist, critical_angle):
+    def exiting_refraction(self, omega, omega0, det_dist, critical_angle):
         alpha = np.radians(omega - omega0)
         alpha_sq = alpha * alpha
         critical_angle = np.radians(critical_angle)
         crit_sq = critical_angle * critical_angle
-        refraction_angle_sq = (alpha_sq - crit_sq) / (1 - 0.5 * crit_sq * alpha_sq)
+        refraction_angle_sq = (alpha_sq - crit_sq) / (1 - 0.5 * crit_sq)
         return self.z0 + det_dist * np.tan(alpha + np.sqrt(refraction_angle_sq))
-    
-    def refraction_neg(self, omega, omega0, det_dist, critical_angle):
-        alpha = np.radians(omega - omega0)
-        critical_angle = np.radians(critical_angle)
-        crit_sq = critical_angle * critical_angle
-        refraction_angle = np.sqrt(alpha * alpha * (1 - 0.5 * crit_sq) + crit_sq)
-        return self.z0 + det_dist * np.tan(alpha + refraction_angle)
     
     def plot(self, title="", critical_angle=None, horizon=False, det_dist=None, omega0=None):
         if self.type == "om":
@@ -562,13 +555,13 @@ class SpecularScan:
             for crit in critical_angle:
                 if crit == last:
                     omega1 = np.linspace(omega0 + crit, omega0 + crit + .05, 100)
-                    ax.plot(omega1, self.refraction_pos2(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
+                    ax.plot(omega1, self.exiting_refraction(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                 else:
                     ax.plot(omega2, self.yoneda(omega2, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                     omega1 = np.linspace(omega0 + crit, self.angles[-1], 1000)
-                    ax.plot(omega1, self.refraction_pos1(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
+                    ax.plot(omega1, self.transmission(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                     omega1 = np.linspace(self.angles[0], omega0 + crit, 1000)
-                    ax.plot(omega1, self.refraction_neg(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
+                    ax.plot(omega1, self.exiting_refraction(omega1, omega0, det_dist, crit), "white", linewidth=1, alpha=0.5)
                     
                     # spec_at = self.specular_fit(crit + self.omega0, self.omega0, self.det_dist_fit)
                     # ax.plot([crit + self.omega0, crit + self.omega0], [spec_at + 0.6, spec_at + 1], "white", linewidth=.5, alpha=0.5)
@@ -664,6 +657,7 @@ class SpecularScan:
         fig.suptitle("Specular z-scan")
         fig.tight_layout()
         self.save_fig(fig)
+        return fig, ((ax1, ax2), (ax3, ax4))
     
     def animate_tiffs(self, fps: float = 6.0, scale: float = 1):
         scale *= 0.2

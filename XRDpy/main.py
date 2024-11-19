@@ -39,8 +39,8 @@ class StitchParse:
         if self.args.dir is None:
             self.dir = Path.cwd()
         elif self.args.dir == "DATA":
-            with open(package.directory / "config.yaml") as f:
-                self.dir = Path(yaml.safe_load(f)["data_path"])
+            with open(package.directory / "config.txt") as f:
+                self.dir = Path(f.read().strip("\n"))
         else:
             self.dir = Path(self.args.dir)
 
@@ -234,8 +234,8 @@ def move():
     else:
         other_unit = "mdeg"
     
-    with open(package.directory / "config.yaml") as f:
-        DATA = Path(yaml.safe_load(f)["data_path"])
+    with open(package.directory / "config.txt") as f:
+        DATA = Path(f.read().strip("\n"))
     
     usr_dir = package.directory / args.user / "scans"   # / "{}_scans".format(args.type.lower())
     if not usr_dir.exists():
