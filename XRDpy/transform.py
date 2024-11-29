@@ -62,10 +62,14 @@ class GIXS:
         self.ai.detector = detector
         self.ai.save(self.dir / "GIXS.poni")
 
+        self.header = {}
+
         self.header["IncidentAngle(deg)"] = self.incident_angle
         self.header["TiltAngle(deg)"] = self.tilt_angle
         self.header["WaveGuiding"] = waveguiding
         self.header["RefractionAngle"] = refraction_angle
+        for key in header.keys():
+            self.header[key] = header[key]
         
         return self.data, self.flat_field
 
@@ -177,7 +181,8 @@ class GIXS:
         ray_dist_sq = vert_dist_sq + x_sq
         cos_phi = np.sqrt(vert_dist_sq / ray_dist_sq)
         sin_phi = np.sqrt(x_sq / ray_dist_sq)
-        cos_alpha = np.cos(alpha - self.incident_angle)
+        alpha -= self.incident_angle
+        cos_alpha = np.cos(alpha)
 
         internal_angle = self.incident_angle - refraction_angle
         cos_internal = np.cos(internal_angle)
