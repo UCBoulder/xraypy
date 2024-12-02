@@ -1,7 +1,7 @@
 import sys
 import yaml
 from pathlib import Path
-import XRDpy.package_params as package
+import xraypy.package_params as package
 
 class ConfigHandler:
     def __init__(self, args) -> None:

@@ -1,7 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 import tomllib
-import XRDpy.package_params as package
+import xraypy.package_params as package
 
 with open(package.config, "rb") as file:
     config = tomllib.load(file)["macro"]

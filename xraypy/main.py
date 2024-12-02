@@ -2,11 +2,11 @@ from datetime import datetime
 import argparse
 import fabio
 from pathlib import Path
-import XRDpy.package_params as package
+import xraypy.package_params as package
 import shutil
-from XRDpy.data_loading import Stitcher
-import XRDpy.macro as macro
-import XRDpy.specular as specular
+from xraypy.data_loading import Stitcher
+import xraypy.macro as macro
+import xraypy.specular as specular
 import matplotlib.pylab as plt
 plt.style.use("XRDpy.style")
 

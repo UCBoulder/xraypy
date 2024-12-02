@@ -2,7 +2,7 @@ import matplotlib.offsetbox
 import numpy as np
 import fabio
 import pyFAI.detectors as detectors
-from XRDpy.data_loading import Detector
+from xraypy.data_loading import Detector
 from scipy.optimize import curve_fit, root_scalar
 from scipy.special import erf
 from pathlib import Path

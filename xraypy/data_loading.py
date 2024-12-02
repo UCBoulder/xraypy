@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 from scipy import ndimage
-from XRDpy import package_params as package
+from xraypy import package_params as package
 import tomllib
 import fabio
 import pyFAI.detectors
