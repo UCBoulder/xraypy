@@ -1,5 +1,19 @@
 from datetime import datetime
 from pathlib import Path
+import tomllib
+import XRDpy.package_params as package
+
+with open(package.config, "rb") as file:
+    config = tomllib.load(file)["macro"]
+
+set_om = config["set_omega"]
+set_vert = config["set_vertical"]
+set_hori = config["set_horizontal"]
+move_bs = config["move_beamstop"]
+move_om = config["move_omega"]
+move_vert = config["move_vertical"]
+move_hori = config["move_horizontal"]
+expose = config["expose"]
 
 
 def create_om_file(directory: Path, angles: list, tag: str = "", final: int = -4) -> None:
@@ -18,18 +32,19 @@ def create_om_file(directory: Path, angles: list, tag: str = "", final: int = -4
     macroname = f'Incident_angle_tuning_macro-{date.year:02d}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
     print("Writing Macro...")
     with open(directory / macroname, 'w') as f:
-        f.write("umvr wbs 5\n")  # move beam stop out of the way
+        f.write(move_bs.format(5))  # move beam stop out of the way
 
         for om in angles:
-            f.write(f"umv om {om}\n")
+            f.write(set_om.format(om))
             formatted_angle = "{}_{}".format(*str(om).split("."))
-            f.write(f"eiger_run 0.1 om_scan_{tag}{formatted_angle}_degrees.tif\n")
+            img_name = f"om_scan_{tag}{formatted_angle}_degrees"
+            f.write(expose.format(img_name))
 
-        f.write("umvr z -10\n")  # move sample out of the way
-        f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
-        f.write("umvr z 10\n")  # move sample back into beam
-        f.write("umvr wbs -5\n")
-        f.write(f"umv om {final}\n")
+        f.write(move_vert.format(-10))  # move sample out of the way
+        f.write(expose.format("om_scan_direct_beam"))  # take direct beam exposure
+        f.write(move_vert.format(10))  # move sample back into beam
+        f.write(move_bs.format(-5))
+        f.write(set_om.format(final))
     num = len(angles) + 1
     time_min = float(num) * 0.1
     minutes = int(time_min)
@@ -57,15 +72,16 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
     macroname = f'Specular_z_macro-{date.year:02d}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
     print("Writing Macro...")
     with open(directory / macroname, 'w') as f:
-        f.write("umvr wbs 5\n")  # move beam stop out of the way
+        f.write(move_bs.format(5))  # move beam stop out of the way
 
         for z in zs:
-            f.write(f"umv z {z}\n")
+            f.write(set_vert.format(z))
             formatted_angle = "{}_{}".format(*str(z).split("."))
-            f.write(f"eiger_run 0.1 z_scan_{tag}{formatted_angle}_mm.tif\n")
-        f.write(f"umv z {final}\n")
-        f.write("eiger_run 0.1 z_scan_direct_beam.tif\n")  # take direct beam exposure
-        f.write("umvr wbs -5\n")
+            img_name = f"z_scan_{tag}{formatted_angle}_mm"
+            f.write(expose.format(img_name))
+        f.write(set_vert.format(final))
+        f.write(expose.format("z_scan_direct_beam"))  # take direct beam exposure
+        f.write(move_bs.format(-5))
     num = len(zs) + 1
     time_min = float(num) * 0.1
     minutes = int(time_min)
@@ -74,42 +90,7 @@ def create_z_file(directory: Path, zs: list, tag: str = "", final: int = -5) -> 
     print("Copy and paste the following into SAXS to run the macro:")
     print("do " + (directory / macroname).as_posix())
     print(f"WARNING: will leave z at {final} mm")
-    return None
-
-def create_rel_file(directory: Path, motor: str, below: float, above: float, step: float, tag: str = "") -> None:
-    if motor.lower() not in ["om", "z"]:
-        raise ValueError("Motor type must be 'om' or 'z'.")
-    below = -abs(below)
-    above = abs(above)
-    if not directory.exists():
-        directory.mkdir(parents=True, exist_ok=True)
-    date = datetime.now()
-    macroname = f'Specular_{motor}-relative_macro-{date.year:02d}{date.month:02d}{date.day:02d}-{date.hour:02d}.txt'
-    print("Writing Macro...")
-    n = 0
-    with open(directory / macroname, 'w') as f:
-        f.write("umvr wbs 5\n")  # move beam stop out of the way
-        f.write(f"umvr {motor} {below:.5f}")
-        where = below
-        while where < above:
-            formatted_position = "{}_{}".format(*str(where).split("."))
-            f.write(f"eiger_run 0.1 {motor}r_scan_{tag}{formatted_position}_mm.tif\n")
-            where += step
-            f.write(f"umvr {motor} {step:.5f}")
-            n += 1
-        to_move_back = below - n * step 
-        f.write(f"umvr {motor} {to_move_back - 5}")
-        # f.write("eiger_run 0.1 om_scan_direct_beam.tif\n")  # take direct beam exposure
-        f.write(f"umvr {motor} 5")
-        f.write("umvr wbs -5\n")
-    num = below + above
-    time_min = float(num) * 0.1
-    minutes = int(time_min)
-    seconds = round((time_min - minutes) * 60)
-    print(f"Macro written with {num} images. Estimated time (min:sec): {minutes}:{seconds:02d}")
-    print("Copy and paste the following into SAXS to run the macro:")
-    print("do " + (directory / macroname).as_posix())
-    
+    return None  
 
 
 def arange_list(start, finish, step):

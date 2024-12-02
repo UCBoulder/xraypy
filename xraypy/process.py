@@ -4,7 +4,7 @@ import fabio
 import matplotlib.pylab as plt
 import matplotlib
 from pathlib import Path
-from XRDpy.tiff_loader import load_from
+from XRDpy.data_loading import load_from
 from XRDpy.process_default import ConfigHandler
 from XRDpy.transform import TransformGIX
 matplotlib.rcParams['mathtext.fontset'] = 'stix'

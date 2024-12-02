@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "XRDpy"
-version = "3.11"
+version = "4.0"
 description = "Python package for controlling Xenocs instrument for GIXS"
 readme = { file = "README.md", content-type = "text/markdown" }
 authors = [
@@ -12,12 +12,18 @@ authors = [
 ]
 license = { text = "GPL" }
 classifiers = [
+    "Natural Language :: English",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: GPL License",
+    "License :: OSI Approved :: GNU General Public License (GPL)",
     "Operating System :: OS Independent"
 ]
 dependencies = [
@@ -25,16 +31,25 @@ dependencies = [
     "pyFAI",
     "fabio",
     "matplotlib",
+    "gixpy",
     "pyside6",
 ]
 requires-python = ">=3.9"
 
 [project.scripts]
-STITCH = "XRDpy.main:stitch"
-SCAN = "XRDpy.main:make_scan"
-MOVE = "XRDpy.main:move"
-PLOT = "XRDpy.main:plot"
+x-stitch = "XRDpy.main:stitch"
+x-scan = "XRDpy.main:make_scan"
+x-move = "XRDpy.main:move"
+x-plot = "XRDpy.main:plot"
+
+[project.urls]
+Repository = "https://github.com/UCBoulder/XRDpy"
+Issues = "https://github.com/UCBoulder/XRDpy/issues"
 
 [tool.setuptools]
-packages = ["source"]
+# packages = ["XRDpy"]
 include-package-data = true
+py-modules = ["package_params"]
+
+[tool.setuptools.package-data]
+XRDpy = ["**/*.mplstyle"]

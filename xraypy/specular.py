@@ -1,25 +1,24 @@
 import matplotlib.offsetbox
 import numpy as np
 import fabio
-import yaml
 import pyFAI.detectors as detectors
-from XRDpy.tiff_loader import Detector
+from XRDpy.data_loading import Detector
 from scipy.optimize import curve_fit, root_scalar
 from scipy.special import erf
 from pathlib import Path
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
 from matplotlib.animation import FuncAnimation
-import matplotlib
-matplotlib.rcParams['mathtext.fontset'] = 'cm'
-matplotlib.rcParams['font.family'] = 'STIXGeneral'
+plt.style.use("XRDpy.style")
+
 
 class SpecularScan:
 
     MAX_INT = (1 << 32) - 1
 
-    def __init__(self, data_directory: Path, det_dist: float=150, anglular_range: float=1.5, beam_width: float=1, standard_deviations: float=4,
-                 data_remove: int = None, beam_location: str = "LC", plot_name: str = "", plot_dpi: int = None, plot_title: str = None):
+    def __init__(self, data_directory: Path, det_dist: float=150, anglular_range: float=1.5,
+                 beam_width: float=1, standard_deviations: float=4, data_remove: int = None,
+                 beam_location: str = "LC", plot_name: str = "", plot_dpi: int = None, plot_title: str = None):
         self.plot_name = plot_name
         if plot_dpi is None:
             self.save_plots = False
@@ -87,24 +86,12 @@ class SpecularScan:
         direct_beam_file_index = self.find_direct_beam_file_index()
 
         if direct_beam_file_index is None:
-            with open(self.data_directory.parent / "beam_center.yaml", 'r') as yaml_file:
-                beam_center_data = yaml.safe_load(yaml_file)
-            self.beam_center = (beam_center_data["beamcenter"]['y'], beam_center_data["beamcenter"]['x'])
-        
-            sigma_x = beam_center_data["sigma"]['x']
-            a_x = beam_center_data["amplitude"]['x']
-            sigma_y = beam_center_data["sigma"]['y']
-            a_y = beam_center_data["amplitude"]['y']
-            print("Loaded beam center: ({}, {})".format(*self.beam_center))
-            self.bc_sigma = sigma_y
-            self.bc_amp = a_y
-            self.angles, self.intensity_data = self.load()
-        else:
-            x_pos = self.beam_loc[1]
-            y_pos = self.beam_loc[0]
-            self.beam_center = self.find_beam_center(direct_beam_file_index, x_pos, y_pos)
-            print("Direct beam is at ({}, {})".format(*self.beam_center))
-            del(self.file_list[direct_beam_file_index])
+            raise FileExistsError("Did not find a direct beam exposure")
+        x_pos = self.beam_loc[1]
+        y_pos = self.beam_loc[0]
+        self.beam_center = self.find_beam_center(direct_beam_file_index, x_pos, y_pos)
+        print("Direct beam is at ({}, {})".format(*self.beam_center))
+        del(self.file_list[direct_beam_file_index])
         motor, self.intensity_data = self.load()
             
         if self.type == "om":
@@ -178,11 +165,6 @@ class SpecularScan:
         self.bc_sigma = abs(sigma_y * self.detector.get_pixel1() * 1e3)
         print(self.bc_sigma)
         self.bc_amp = a_y
-        to_write = {"beamcenter": {'x': float(x0), 'y': float(y0)},
-                    "sigma": {'x': float(sigma_x), 'y': float(sigma_y)},
-                    "amplitude": {'x': float(a_x), 'y': float(a_y)}}
-        with open(self.data_directory.parent / "beam_center.yaml", 'w') as yaml_file:
-            yaml.dump(to_write, yaml_file, default_flow_style=False)
 
         fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(10, 7))
         fig.delaxes(ax4)

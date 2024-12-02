@@ -1,33 +1,30 @@
 from setuptools import setup, find_packages
 from pathlib import Path
 import shutil
-import XRDpy.package_params as package
+import sys
 
-detector_dir = package.directory / "Detectors"
-notebooks_dir = package.directory / "Jupyter-Notebooks"
-user_dir = package.directory / "User-Files"
-if package.directory.exists():
-    if detector_dir.exists():
-        shutil.rmtree(detector_dir)
-    if notebooks_dir.exists():
-        shutil.rmtree(notebooks_dir)
+sys.path.append(str(Path(__file__).parent / "XRDpy"))
+import package_params as package
+
+with open ("README.md", "r") as f:
+    long_description = f.read()
+
+if package.Directory.home.exists():
+    if package.Directory.notebooks.exists():
+        shutil.rmtree(package.Directory.notebooks)
 else:
-    package.directory.mkdir(parents=True, exist_ok=True)
-detector_dir.mkdir(parents=True)
-notebooks_dir.mkdir(parents=True)
-if not user_dir.exists():
-    user_dir.mkdir(parents=True)
+    package.Directory.home.mkdir(parents=True, exist_ok=True)
+package.Directory.notebooks.mkdir(parents=True)
 
-for det_file in (Path("files") / "Detectors").glob("*.h5"):
-    shutil.copyfile(det_file, detector_dir / det_file.name)
-for notebook_file in (Path("files") / "Jupyter-Notebooks").glob("*.ipynb"):
-    shutil.copyfile(notebook_file, notebooks_dir / notebook_file.name)
+if not package.Directory.user.exists():
+    package.Directory.user.mkdir(parents=True)
+for notebook_file in Path("files/Jupyter-Notebooks").glob("*.ipynb"):
+    shutil.copyfile(notebook_file, package.Directory.notebooks / notebook_file.name)
 
-with open(package.directory / "config.txt", "w") as f:
-    f.write(package.data_path.as_posix())
+shutil.copyfile(Path("files/config.toml"), package.config)
 
+# See pyproject.toml for metadata
 setup(
-    packages=find_packages(include=['XRDpy', 'XRDpy.*']),
-    scripts=["XRDpy/main.py",],
-    py_modules=["XRDpy.transform"],
+    long_description=long_description,
+    long_description_content_type="text/markdown",
 )
