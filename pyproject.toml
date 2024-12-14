@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "XRDpy"
+name = "xraypy"
 version = "4.0"
 description = "Python package for controlling Xenocs instrument for GIXS"
 readme = { file = "README.md", content-type = "text/markdown" }
@@ -37,19 +37,18 @@ dependencies = [
 requires-python = ">=3.9"
 
 [project.scripts]
-x-stitch = "XRDpy.main:stitch"
-x-scan = "XRDpy.main:make_scan"
-x-move = "XRDpy.main:move"
-x-plot = "XRDpy.main:plot"
+x-stitch = "xraypy.main:stitch"
+x-scan = "xraypy.main:make_scan"
+x-move = "xraypy.main:move"
+x-plot = "xraypy.main:plot"
 
 [project.urls]
 Repository = "https://github.com/UCBoulder/XRDpy"
 Issues = "https://github.com/UCBoulder/XRDpy/issues"
 
 [tool.setuptools]
-# packages = ["XRDpy"]
 include-package-data = true
 py-modules = ["package_params"]
 
 [tool.setuptools.package-data]
-XRDpy = ["**/*.mplstyle"]
+xraypy = ["style.mplstyle", "config.toml", "Jupyter-Notebooks/*.ipynb"]

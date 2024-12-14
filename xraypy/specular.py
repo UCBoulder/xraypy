@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.pylab as plt
 from matplotlib.colors import LogNorm
 from matplotlib.animation import FuncAnimation
-plt.style.use("XRDpy.style")
+plt.style.use("xraypy.style")
 
 
 class SpecularScan:

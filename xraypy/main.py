@@ -8,7 +8,7 @@ from xraypy.data_loading import Stitcher
 import xraypy.macro as macro
 import xraypy.specular as specular
 import matplotlib.pylab as plt
-plt.style.use("XRDpy.style")
+plt.style.use("xraypy.style")
 
 
 class StitchParse:

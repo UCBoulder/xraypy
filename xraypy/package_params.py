@@ -1,13 +1,15 @@
 from pathlib import Path
+import tomllib
+import sys
 
-name = "XRDpy"
+with open(Path(sys.prefix) / "Lib/site-packages/xraypy/config.toml", "rb") as file:
+    config = tomllib.load(file)["paths"]
 
 class Directory:
-    DATA = (Path.home() / "DATA").resolve()
-    home = (Path.home() / "Documents" / name).resolve()
-    notebooks = home / "Jupyter-Notebooks"
-    user = home / "User-Files"
-    macros = user / "macros"
-
+    DATA = (Path.home() / config["data"]).resolve()
+    home = (Path.home() / "Documents" / config["home"]).resolve()
+    notebooks = home / config["notebooks"]
+    user = home / config["user"]
+    macros = user / config["macros"]
 
 config = Directory.home / "config.toml"

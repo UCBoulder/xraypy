@@ -1,0 +1,4 @@
+include README.md
+include xraypy/style.mplstyle
+include xraypy/config.toml
+recursive-include xraypy *.ipynb

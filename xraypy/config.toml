@@ -35,3 +35,12 @@ compensate = true
 separator = "_"
 raw_label = ""
 file_extension = ""
+
+
+[paths]
+data = "DATA"                       # relative to ~/
+home = "XrayPy"                     # relative to ~/Documents
+notebooks = "Jupyter-Notebooks"     # relative to ~/Documents/{home}
+user = "User-Files"                 # relative to ~/Documents/{home}
+macros = "macros"                   # relative to ~/Documents/{home}/{user}
+config = "config.toml"              # relative to ~/Documents/{home}
