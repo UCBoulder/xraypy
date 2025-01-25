@@ -537,7 +537,7 @@ class SpecularScan:
         # z = np.arange(intensity_x_total.shape[1])[::-1] * self.pixel_size
         ax.set_ylabel("$z$ (mm)", fontsize=12)
 
-        color_map = ax.pcolormesh(self.angles, self.z, self.intensity_specular.T,
+        color_map = ax.pcolormesh(self.angles, self.z, self.intensity_specular.T, rasterized=True,
                                   norm=LogNorm(1, self.intensity_specular.max()), cmap="plasma")
         
         ax.axhline(self.z0, linestyle="--", color="#FF5349", linewidth=0.7)
@@ -593,7 +593,7 @@ class SpecularScan:
         ax1.set_ylabel("$z$ (mm)", fontsize=12)
         ax1.set_ylabel("$z$-motor (mm)", fontsize=12)
         #ax1.set_xticks(list(self.z_motor))
-        color_map = ax1.pcolormesh(self.z_motor, self.z, self.intensity_specular.T,
+        color_map = ax1.pcolormesh(self.z_motor, self.z, self.intensity_specular.T, rasterized=True,
                                    norm=LogNorm(1, self.intensity_specular.max()), cmap="plasma")
         color_bar = fig.colorbar(color_map, ax=ax1)
         ax1.axhline(self.standard_deviations * self.bc_sigma,
