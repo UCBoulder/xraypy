@@ -32,20 +32,20 @@ class StitchParse:
         self.parser.add_argument("-T", "--tif", action="store_true", help="Also save TIF image.")
         self.parser.add_argument("-J", "--jupyter", action="store_true", help="Copy Jupyter Notebook to CWD.")
         self.parser.add_argument("-N", "--name", default="", help="Set name the stitched files")
-        self.parser.add_argument("-DZ", )
+        # self.parser.add_argument("-DZ", )
 
-        args = self.parser.parse_args()
+        self.args = self.parser.parse_args()
         
-        if args.dir.name == "DATA":
-            args.dir = package.Directory.DATA
-        self.dir = args.dir
+        if self.args.dir.name == "DATA":
+            self.args.dir = package.Directory.DATA
+        self.dir = self.args.dir
 
-        if args.name.lower == "latest":
+        if self.args.name.lower == "latest":
             newest_file = self.get_newest_file(self.dir)
-            args.name = newest_file.stem
+            self.args.name = newest_file.stem
         
-        data_file = self.dir / f"{args.name}_stitch.edf".lstrip("_")
-        flat_field_file = self.dir / f"{args.name}_flat-field.edf".lstrip("_") 
+        data_file = self.dir / f"{self.args.name}_stitch.edf".lstrip("_")
+        flat_field_file = self.dir / f"{self.args.name}_flat-field.edf".lstrip("_") 
 
         stitcher = Stitcher(self.args.rows, self.args.columns, self.args.compensate_false)
         data, flat_field = stitcher.stitch(self.dir)
