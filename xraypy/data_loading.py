@@ -45,11 +45,19 @@ class Detector(DetectorFromConfig):
         super().__init__(orientation=detector_config["orientation"])
     
     @classmethod
-    def calc_mask(cls) -> np.ndarray:
+    def calc_mask_cls(cls) -> np.ndarray:
         mask = super().calc_mask()
         mask[cls.BAD_PIXELS] = 1
         for row_start_quad in cls.ISSUE_QUADS[0]:
             for col_start_quad in cls.ISSUE_QUADS[1]:
+                mask[row_start_quad:(row_start_quad + 4), col_start_quad:(col_start_quad + 4)] = 1
+        return mask
+    
+    def calc_mask(self) -> np.ndarray:
+        mask = super().calc_mask()
+        mask[self.BAD_PIXELS] = 1
+        for row_start_quad in self.ISSUE_QUADS[0]:
+            for col_start_quad in self.ISSUE_QUADS[1]:
                 mask[row_start_quad:(row_start_quad + 4), col_start_quad:(col_start_quad + 4)] = 1
         return mask
     
