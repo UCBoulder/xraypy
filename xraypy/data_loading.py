@@ -184,7 +184,7 @@ class Stitcher:
                         mask = np.logical_not(self.detector.calc_mask_dezinger(file_data, cut_off, gaussian_standard_deviation))
                     else:
                         mask = base_mask.copy()                
-                    mask = np.logical_not(self.detector.calc_mask)
+                    mask = np.logical_not(self.detector.calc_mask())
                     mask[file_data == self.detector.MAX_INT] = 0
                     file_data *= mask
                     start_row = (self.stitch_rows - stitch_row) * (self.detector.ROWS - Stitcher.OVERLAP)

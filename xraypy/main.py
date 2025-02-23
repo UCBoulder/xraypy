@@ -48,7 +48,8 @@ class StitchParse:
         flat_field_file = self.dir / f"{self.args.name}_flat-field.edf".lstrip("_") 
 
         stitcher = Stitcher(self.args.rows, self.args.columns, self.args.compensate_false)
-        data, flat_field = stitcher.stitch(self.dir)
+        data, flat_field, detector = stitcher.stitch(self.dir)
+        detector.save(self.dir / "detector-stitch.h5")
 
         date = datetime.now()
         header = {
@@ -76,9 +77,9 @@ class StitchParse:
 
         if self.args.jupyter:
             if "GI" in self.args.experiment.upper() or self.args.incident is not None or self.args.om is not None:
-                notebooks_to_copy = ("transform-GIWAXS.ipynb")
+                notebooks_to_copy = (["transform-GIWAXS.ipynb"])
             else:
-                notebooks_to_copy = ("reduce_WAXS.ipynb")
+                notebooks_to_copy = (["reduce_WAXS.ipynb"])
             for notebook in notebooks_to_copy:
                 self.copy_notebook(notebook)
         
